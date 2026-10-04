@@ -1,7 +1,10 @@
 package com.epam.gym.service.impl;
 
 import com.epam.gym.dao.TrainerDao;
+import com.epam.gym.dao.TrainingTypeDao;
 import com.epam.gym.model.Trainer;
+import com.epam.gym.model.TrainingType;
+import com.epam.gym.model.User;
 import com.epam.gym.util.PasswordGenerator;
 import com.epam.gym.util.UsernameGenerator;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import static com.epam.gym.TestEntities.trainer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -29,6 +33,9 @@ class TrainerServiceImplTest {
     private TrainerDao trainerDao;
 
     @Mock
+    private TrainingTypeDao trainingTypeDao;
+
+    @Mock
     private UsernameGenerator usernameGenerator;
 
     @Mock
@@ -36,71 +43,92 @@ class TrainerServiceImplTest {
 
     private TrainerServiceImpl trainerService;
 
+    private final TrainingType yoga = new TrainingType("Yoga");
+    private final TrainingType cardio = new TrainingType("Cardio");
+
     @BeforeEach
     void setUp() {
         trainerService = new TrainerServiceImpl();
         trainerService.setTrainerDao(trainerDao);
+        trainerService.setTrainingTypeDao(trainingTypeDao);
         trainerService.setUsernameGenerator(usernameGenerator);
         trainerService.setPasswordGenerator(passwordGenerator);
     }
 
     @Test
-    void create_setsGeneratedUsernamePasswordAndActive() {
-        Trainer trainer = trainer(null, "Robert", "Taylor");
-        when(usernameGenerator.generate("Robert", "Taylor")).thenReturn("Robert.Taylor");
+    void create_setsCredentialsAndLoadsSpecializationFromDatabase() {
+        TrainingType yogaFromDb = new TrainingType("Yoga");
+        Trainer trainer = new Trainer(new User("Nodira", "Karimova"), yoga);
+        when(trainingTypeDao.findByName("Yoga")).thenReturn(Optional.of(yogaFromDb));
+        when(usernameGenerator.generate("Nodira", "Karimova")).thenReturn("Nodira.Karimova");
         when(passwordGenerator.generate()).thenReturn("sT7uV1wX3y");
         when(trainerDao.create(trainer)).thenReturn(trainer);
 
         Trainer created = trainerService.create(trainer);
 
-        assertEquals("Robert.Taylor", created.getUsername());
-        assertEquals("sT7uV1wX3y", created.getPassword());
-        assertTrue(created.isActive());
+        assertSame(yogaFromDb, created.getSpecialization());
+        assertEquals("Nodira.Karimova", created.getUser().getUsername());
+        assertEquals("sT7uV1wX3y", created.getUser().getPassword());
+        assertTrue(created.getUser().isActive());
         verify(trainerDao).create(trainer);
     }
 
     @Test
-    void update_existingTrainer_keepsUsernameAndPassword() {
-        Trainer existing = trainer(3L, "Robert", "Taylor");
-        existing.setUsername("Robert.Taylor");
-        existing.setPassword("oldPass123");
-        Trainer changes = trainer(3L, "Robert", "Taylor");
-        when(trainerDao.findById(3L)).thenReturn(Optional.of(existing));
-        when(trainerDao.update(changes)).thenReturn(changes);
+    void create_unknownSpecialization_throwsException() {
+        Trainer trainer = new Trainer(new User("Nodira", "Karimova"), new TrainingType("Swimming"));
+        when(trainingTypeDao.findByName("Swimming")).thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class, () -> trainerService.create(trainer));
+        verify(trainerDao, never()).create(any());
+    }
+
+    @Test
+    void create_withoutSpecialization_throwsException() {
+        Trainer trainer = new Trainer(new User("Nodira", "Karimova"), null);
+
+        assertThrows(IllegalArgumentException.class, () -> trainerService.create(trainer));
+        verify(trainerDao, never()).create(any());
+    }
+
+    @Test
+    void update_existingTrainer_copiesFieldsAndKeepsCredentials() {
+        Trainer existing = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
+        existing.setId(1L);
+        Trainer changes = trainer("Nodira", "Aliyeva", null, cardio);
+        changes.setId(1L);
+        when(trainerDao.findById(1L)).thenReturn(Optional.of(existing));
+        when(trainingTypeDao.findByName("Cardio")).thenReturn(Optional.of(cardio));
 
         Trainer updated = trainerService.update(changes);
 
-        assertEquals("Robert.Taylor", updated.getUsername());
-        assertEquals("oldPass123", updated.getPassword());
-        verify(trainerDao).update(changes);
+        assertSame(existing, updated);
+        assertEquals("Aliyeva", updated.getUser().getLastName());
+        assertEquals("Cardio", updated.getSpecialization().getTrainingTypeName());
+        assertEquals("Nodira.Karimova", updated.getUser().getUsername());
     }
 
     @Test
     void update_notExistingTrainer_throwsException() {
-        Trainer trainer = trainer(99L, "Robert", "Taylor");
+        Trainer trainer = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
+        trainer.setId(99L);
         when(trainerDao.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class, () -> trainerService.update(trainer));
-        verify(trainerDao, never()).update(any());
     }
 
     @Test
     void update_nullId_throwsException() {
-        Trainer trainer = trainer(null, "Robert", "Taylor");
+        Trainer trainer = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
 
         assertThrows(IllegalArgumentException.class, () -> trainerService.update(trainer));
-        verify(trainerDao, never()).update(any());
     }
 
     @Test
     void select_existingTrainer_returnsIt() {
-        Trainer trainer = trainer(3L, "Robert", "Taylor");
-        when(trainerDao.findById(3L)).thenReturn(Optional.of(trainer));
+        Trainer trainer = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
+        when(trainerDao.findById(1L)).thenReturn(Optional.of(trainer));
 
-        Optional<Trainer> result = trainerService.select(3L);
-
-        assertTrue(result.isPresent());
-        assertSame(trainer, result.get());
+        assertSame(trainer, trainerService.select(1L).orElseThrow());
     }
 
     @Test
@@ -108,13 +136,5 @@ class TrainerServiceImplTest {
         when(trainerDao.findById(99L)).thenReturn(Optional.empty());
 
         assertTrue(trainerService.select(99L).isEmpty());
-    }
-
-    private Trainer trainer(Long id, String firstName, String lastName) {
-        Trainer trainer = new Trainer();
-        trainer.setUserId(id);
-        trainer.setFirstName(firstName);
-        trainer.setLastName(lastName);
-        return trainer;
     }
 }

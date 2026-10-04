@@ -6,6 +6,7 @@ import com.epam.gym.model.Trainee;
 import com.epam.gym.model.Trainer;
 import com.epam.gym.model.Training;
 import com.epam.gym.model.TrainingType;
+import com.epam.gym.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -19,28 +20,23 @@ public class GymCrmApplication {
         try (var context = new AnnotationConfigApplicationContext(AppConfig.class)) {
             GymFacade facade = context.getBean(GymFacade.class);
 
-            Trainee trainee = new Trainee();
-            trainee.setFirstName("John");
-            trainee.setLastName("Doe");
+            log.info("Training types: {}", facade.getTrainingTypes());
+
+            Trainee trainee = new Trainee(new User("John", "Doe"));
             trainee.setDateOfBirth(LocalDate.of(1998, 3, 15));
             trainee.setAddress("7 Amir Temur Street, Tashkent");
             facade.createTrainee(trainee);
             log.info("Created: {}", trainee);
 
-            TrainingType yoga = new TrainingType();
-            yoga.setTrainingTypeName("Yoga");
-            Trainer trainer = new Trainer();
-            trainer.setFirstName("Nodira");
-            trainer.setLastName("Karimova");
-            trainer.setSpecialization(yoga);
+            Trainer trainer = new Trainer(new User("Nodira", "Karimova"), new TrainingType("Yoga"));
             facade.createTrainer(trainer);
             log.info("Created: {}", trainer);
 
             Training training = new Training();
-            training.setTraineeId(trainee.getUserId());
-            training.setTrainerId(trainer.getUserId());
+            training.setTrainee(trainee);
+            training.setTrainer(trainer);
             training.setTrainingName("Morning Yoga");
-            training.setTrainingType(yoga);
+            training.setTrainingType(new TrainingType("Yoga"));
             training.setTrainingDate(LocalDate.now().plusDays(1));
             training.setTrainingDuration(60);
             facade.createTraining(training);
@@ -48,10 +44,11 @@ public class GymCrmApplication {
 
             trainee.setAddress("15 Navoi Street, Tashkent");
             facade.updateTrainee(trainee);
-            log.info("Selected after update: {}", facade.selectTrainee(trainee.getUserId()).orElseThrow());
+            log.info("Selected after update: {}", facade.selectTrainee(trainee.getId()).orElseThrow());
 
-            facade.deleteTrainee(2L);
-            log.info("Trainee 2 present after delete: {}", facade.selectTrainee(2L).isPresent());
+            facade.deleteTrainee(trainee.getId());
+            log.info("Trainee {} present after delete: {}",
+                    trainee.getId(), facade.selectTrainee(trainee.getId()).isPresent());
         }
     }
 }

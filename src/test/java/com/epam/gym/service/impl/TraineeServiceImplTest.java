@@ -2,6 +2,7 @@ package com.epam.gym.service.impl;
 
 import com.epam.gym.dao.TraineeDao;
 import com.epam.gym.model.Trainee;
+import com.epam.gym.model.User;
 import com.epam.gym.util.PasswordGenerator;
 import com.epam.gym.util.UsernameGenerator;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,9 +11,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import static com.epam.gym.TestEntities.trainee;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -47,78 +50,85 @@ class TraineeServiceImplTest {
 
     @Test
     void create_setsGeneratedUsernamePasswordAndActive() {
-        Trainee trainee = trainee(null, "John", "Smith");
-
+        Trainee trainee = new Trainee(new User("John", "Smith"));
         when(usernameGenerator.generate("John", "Smith")).thenReturn("John.Smith");
         when(passwordGenerator.generate()).thenReturn("aB3dE5gH7j");
         when(traineeDao.create(trainee)).thenReturn(trainee);
 
         Trainee created = traineeService.create(trainee);
 
-        assertEquals("John.Smith", created.getUsername());
-        assertEquals("aB3dE5gH7j", created.getPassword());
-        assertTrue(created.isActive());
+        assertEquals("John.Smith", created.getUser().getUsername());
+        assertEquals("aB3dE5gH7j", created.getUser().getPassword());
+        assertTrue(created.getUser().isActive());
         verify(traineeDao).create(trainee);
     }
 
     @Test
-    void update_existingTrainee_keepsUsernameAndPassword() {
-        Trainee existing = trainee(1L, "John", "Smith");
-        existing.setUsername("John.Smith");
-        existing.setPassword("oldPass123");
-        Trainee changes = trainee(1L, "John", "Smith");
-        changes.setAddress("New address");
+    void create_withoutUser_throwsException() {
+        assertThrows(IllegalArgumentException.class, () -> traineeService.create(new Trainee()));
+        verify(traineeDao, never()).create(any());
+    }
+
+    @Test
+    void update_existingTrainee_copiesFieldsAndKeepsCredentials() {
+        Trainee existing = trainee("John", "Smith", "John.Smith");
+        existing.setId(1L);
+        Trainee changes = trainee("Johnny", "Smith", null);
+        changes.setId(1L);
+        changes.getUser().setPassword(null);
+        changes.setAddress("Samarkand");
+        changes.setDateOfBirth(LocalDate.of(1999, 5, 5));
         when(traineeDao.findById(1L)).thenReturn(Optional.of(existing));
-        when(traineeDao.update(changes)).thenReturn(changes);
 
         Trainee updated = traineeService.update(changes);
 
-        assertEquals("John.Smith", updated.getUsername());
-        assertEquals("oldPass123", updated.getPassword());
-        assertEquals("New address", updated.getAddress());
-        verify(traineeDao).update(changes);
+        assertSame(existing, updated);
+        assertEquals("Johnny", updated.getUser().getFirstName());
+        assertEquals("Samarkand", updated.getAddress());
+        assertEquals(LocalDate.of(1999, 5, 5), updated.getDateOfBirth());
+        assertEquals("John.Smith", updated.getUser().getUsername());
+        assertEquals("password12", updated.getUser().getPassword());
     }
 
     @Test
     void update_notExistingTrainee_throwsException() {
-        Trainee trainee = trainee(99L, "John", "Smith");
+        Trainee trainee = trainee("John", "Smith", "John.Smith");
+        trainee.setId(99L);
         when(traineeDao.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class, () -> traineeService.update(trainee));
-        verify(traineeDao, never()).update(any());
     }
 
     @Test
     void update_nullId_throwsException() {
-        Trainee trainee = trainee(null, "John", "Smith");
+        Trainee trainee = trainee("John", "Smith", "John.Smith");
 
         assertThrows(IllegalArgumentException.class, () -> traineeService.update(trainee));
-        verify(traineeDao, never()).update(any());
     }
 
     @Test
-    void delete_existingTrainee_returnsTrue() {
-        when(traineeDao.delete(1L)).thenReturn(true);
+    void delete_existingTrainee_deletesItAndReturnsTrue() {
+        Trainee trainee = trainee("John", "Smith", "John.Smith");
+        when(traineeDao.findById(1L)).thenReturn(Optional.of(trainee));
 
         assertTrue(traineeService.delete(1L));
+        verify(traineeDao).delete(trainee);
     }
 
     @Test
     void delete_notExistingTrainee_returnsFalse() {
-        when(traineeDao.delete(99L)).thenReturn(false);
+        when(traineeDao.findById(99L)).thenReturn(Optional.empty());
 
         assertFalse(traineeService.delete(99L));
+        verify(traineeDao, never()).delete(any());
     }
 
     @Test
     void select_existingTrainee_returnsIt() {
-        Trainee trainee = trainee(1L, "John", "Smith");
+        Trainee trainee = trainee("John", "Smith", "John.Smith");
         when(traineeDao.findById(1L)).thenReturn(Optional.of(trainee));
 
-        Optional<Trainee> result = traineeService.select(1L);
-
-        assertTrue(result.isPresent());
-        assertSame(trainee, result.get());
+        assertSame(trainee, traineeService.select(1L).orElseThrow());
     }
 
     @Test
@@ -126,13 +136,5 @@ class TraineeServiceImplTest {
         when(traineeDao.findById(99L)).thenReturn(Optional.empty());
 
         assertTrue(traineeService.select(99L).isEmpty());
-    }
-
-    private Trainee trainee(Long id, String firstName, String lastName) {
-        Trainee trainee = new Trainee();
-        trainee.setUserId(id);
-        trainee.setFirstName(firstName);
-        trainee.setLastName(lastName);
-        return trainee;
     }
 }

@@ -3,17 +3,21 @@ package com.epam.gym.facade;
 import com.epam.gym.model.Trainee;
 import com.epam.gym.model.Trainer;
 import com.epam.gym.model.Training;
+import com.epam.gym.model.TrainingType;
 import com.epam.gym.service.TraineeService;
 import com.epam.gym.service.TrainerService;
 import com.epam.gym.service.TrainingService;
+import com.epam.gym.service.TrainingTypeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
@@ -31,11 +35,14 @@ class GymFacadeTest {
     @Mock
     private TrainingService trainingService;
 
+    @Mock
+    private TrainingTypeService trainingTypeService;
+
     private GymFacade facade;
 
     @BeforeEach
     void setUp() {
-        facade = new GymFacade(traineeService, trainerService, trainingService);
+        facade = new GymFacade(traineeService, trainerService, trainingService, trainingTypeService);
     }
 
     @Test
@@ -116,5 +123,14 @@ class GymFacadeTest {
 
         assertSame(training, facade.selectTraining(1L).orElseThrow());
         verify(trainingService).select(1L);
+    }
+
+    @Test
+    void getTrainingTypes_delegatesToTrainingTypeService() {
+        List<TrainingType> types = List.of(new TrainingType("Yoga"));
+        when(trainingTypeService.findAll()).thenReturn(types);
+
+        assertEquals(types, facade.getTrainingTypes());
+        verify(trainingTypeService).findAll();
     }
 }

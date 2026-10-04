@@ -1,123 +1,107 @@
 package com.epam.gym.dao.impl;
 
+import com.epam.gym.config.AppConfig;
+import com.epam.gym.dao.TraineeDao;
+import com.epam.gym.dao.TrainerDao;
+import com.epam.gym.dao.TrainingDao;
+import com.epam.gym.dao.TrainingTypeDao;
+import com.epam.gym.dao.UserDao;
 import com.epam.gym.model.Trainee;
-import org.junit.jupiter.api.BeforeEach;
+import com.epam.gym.model.Trainer;
+import com.epam.gym.model.Training;
+import com.epam.gym.model.TrainingType;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.time.LocalDate;
 
+import static com.epam.gym.TestEntities.trainee;
+import static com.epam.gym.TestEntities.trainer;
+import static com.epam.gym.TestEntities.training;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@SpringJUnitConfig(AppConfig.class)
+@TestPropertySource("classpath:application-test.properties")
+@Transactional
 class TraineeDaoImplTest {
 
-    private Map<Long, Trainee> storage;
-    private TraineeDaoImpl traineeDao;
+    @Autowired
+    private TraineeDao traineeDao;
 
-    @BeforeEach
-    void setUp() {
-        storage = new HashMap<>();
-        traineeDao = new TraineeDaoImpl();
-        traineeDao.setTrainees(storage);
+    @Autowired
+    private TrainerDao trainerDao;
+
+    @Autowired
+    private TrainingDao trainingDao;
+
+    @Autowired
+    private TrainingTypeDao trainingTypeDao;
+
+    @Autowired
+    private UserDao userDao;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    @Test
+    void create_savesTraineeAndItsUser() {
+        Trainee created = traineeDao.create(trainee("John", "Smith", "John.Smith"));
+        entityManager.flush();
+        entityManager.clear();
+
+        Trainee loaded = traineeDao.findById(created.getId()).orElseThrow();
+        assertNotNull(loaded.getUser().getId());
+        assertEquals("John.Smith", loaded.getUser().getUsername());
+        assertEquals("Tashkent", loaded.getAddress());
     }
 
     @Test
-    void create_emptyStorage_assignsIdOne() {
-        Trainee created = traineeDao.create(new Trainee());
+    void findByUsername_existingTrainee_returnsIt() {
+        traineeDao.create(trainee("John", "Smith", "John.Smith"));
 
-        assertEquals(1L, created.getUserId());
-        assertSame(created, storage.get(1L));
+        assertTrue(traineeDao.findByUsername("John.Smith").isPresent());
     }
 
     @Test
-    void create_nonEmptyStorage_assignsNextIdAfterMax() {
-        storage.put(1L, trainee(1L));
-        storage.put(5L, trainee(5L));
-
-        Trainee created = traineeDao.create(new Trainee());
-
-        assertEquals(6L, created.getUserId());
-        assertEquals(3, storage.size());
-    }
-
-    @Test
-    void update_existingTrainee_replacesIt() {
-        storage.put(1L, trainee(1L));
-        Trainee changed = trainee(1L);
-        changed.setAddress("New address");
-
-        traineeDao.update(changed);
-
-        assertEquals("New address", storage.get(1L).getAddress());
-    }
-
-    @Test
-    void update_notExistingTrainee_throwsException() {
-        assertThrows(NoSuchElementException.class, () -> traineeDao.update(trainee(99L)));
-        assertTrue(storage.isEmpty());
-    }
-
-    @Test
-    void update_nullId_throwsException() {
-        assertThrows(IllegalArgumentException.class, () -> traineeDao.update(new Trainee()));
-    }
-
-    @Test
-    void delete_existingTrainee_returnsTrueAndRemovesIt() {
-        storage.put(1L, trainee(1L));
-
-        assertTrue(traineeDao.delete(1L));
-        assertTrue(storage.isEmpty());
-    }
-
-    @Test
-    void delete_notExistingTrainee_returnsFalse() {
-        assertFalse(traineeDao.delete(99L));
-    }
-
-    @Test
-    void findById_existingTrainee_returnsIt() {
-        Trainee trainee = trainee(1L);
-        storage.put(1L, trainee);
-
-        Optional<Trainee> result = traineeDao.findById(1L);
-
-        assertTrue(result.isPresent());
-        assertSame(trainee, result.get());
-    }
-
-    @Test
-    void findById_notExistingTrainee_returnsEmpty() {
-        assertTrue(traineeDao.findById(99L).isEmpty());
+    void findByUsername_unknownTrainee_returnsEmpty() {
+        assertTrue(traineeDao.findByUsername("Nobody.Here").isEmpty());
     }
 
     @Test
     void findAll_returnsAllTrainees() {
-        storage.put(1L, trainee(1L));
-        storage.put(2L, trainee(2L));
+        traineeDao.create(trainee("John", "Smith", "John.Smith"));
+        traineeDao.create(trainee("Jane", "Smith", "Jane.Smith"));
 
         assertEquals(2, traineeDao.findAll().size());
     }
 
     @Test
-    void findAll_returnedListCannotChangeStorage() {
-        storage.put(1L, trainee(1L));
-        List<Trainee> all = traineeDao.findAll();
+    void delete_removesTraineeUserTrainingsAndTrainerLinks() {
+        TrainingType yoga = trainingTypeDao.findByName("Yoga").orElseThrow();
+        Trainer trainer = trainerDao.create(trainer("Nodira", "Karimova", "Nodira.Karimova", yoga));
+        Trainee trainee = trainee("John", "Smith", "John.Smith");
+        trainee.getTrainers().add(trainer);
+        traineeDao.create(trainee);
+        Training training = trainingDao.create(training(trainee, trainer, yoga, "Morning Yoga", LocalDate.now()));
+        entityManager.flush();
+        entityManager.clear();
 
-        assertThrows(UnsupportedOperationException.class, () -> all.add(trainee(2L)));
-        assertEquals(1, storage.size());
-    }
+        traineeDao.delete(traineeDao.findById(trainee.getId()).orElseThrow());
+        entityManager.flush();
+        entityManager.clear();
 
-    private Trainee trainee(Long id) {
-        Trainee trainee = new Trainee();
-        trainee.setUserId(id);
-        return trainee;
+        assertTrue(traineeDao.findById(trainee.getId()).isEmpty());
+        assertFalse(userDao.existsByUsername("John.Smith"));
+        assertNull(entityManager.find(Training.class, training.getId()));
+        assertTrue(trainerDao.findById(trainer.getId()).isPresent());
     }
 }

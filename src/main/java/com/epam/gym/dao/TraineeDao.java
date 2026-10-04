@@ -8,15 +8,11 @@ import java.util.Optional;
 public interface TraineeDao {
     Trainee create(Trainee trainee);
 
-    /**
-     * Throws IllegalArgumentException if userId is null,
-     * NoSuchElementException if no trainee has this userId.
-     */
-    Trainee update(Trainee trainee);
-
-    boolean delete(Long id);
+    void delete(Trainee trainee);
 
     Optional<Trainee> findById(Long id);
+
+    Optional<Trainee> findByUsername(String username);
 
     List<Trainee> findAll();
 }

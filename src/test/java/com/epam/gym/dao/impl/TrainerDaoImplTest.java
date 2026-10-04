@@ -1,98 +1,96 @@
 package com.epam.gym.dao.impl;
 
+import com.epam.gym.config.AppConfig;
+import com.epam.gym.dao.TraineeDao;
+import com.epam.gym.dao.TrainerDao;
+import com.epam.gym.dao.TrainingTypeDao;
+import com.epam.gym.model.Trainee;
 import com.epam.gym.model.Trainer;
+import com.epam.gym.model.TrainingType;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.util.List;
 
+import static com.epam.gym.TestEntities.trainee;
+import static com.epam.gym.TestEntities.trainer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@SpringJUnitConfig(AppConfig.class)
+@TestPropertySource("classpath:application-test.properties")
+@Transactional
 class TrainerDaoImplTest {
 
-    private Map<Long, Trainer> storage;
-    private TrainerDaoImpl trainerDao;
+    @Autowired
+    private TrainerDao trainerDao;
+
+    @Autowired
+    private TraineeDao traineeDao;
+
+    @Autowired
+    private TrainingTypeDao trainingTypeDao;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    private TrainingType yoga;
 
     @BeforeEach
     void setUp() {
-        storage = new HashMap<>();
-        trainerDao = new TrainerDaoImpl();
-        trainerDao.setTrainers(storage);
+        yoga = trainingTypeDao.findByName("Yoga").orElseThrow();
     }
 
     @Test
-    void create_emptyStorage_assignsIdOne() {
-        Trainer created = trainerDao.create(new Trainer());
+    void create_savesTrainerWithSpecialization() {
+        Trainer created = trainerDao.create(trainer("Nodira", "Karimova", "Nodira.Karimova", yoga));
+        entityManager.flush();
+        entityManager.clear();
 
-        assertEquals(1L, created.getUserId());
-        assertSame(created, storage.get(1L));
+        Trainer loaded = trainerDao.findById(created.getId()).orElseThrow();
+        assertEquals("Yoga", loaded.getSpecialization().getTrainingTypeName());
+        assertEquals("Nodira.Karimova", loaded.getUser().getUsername());
     }
 
     @Test
-    void create_nonEmptyStorage_assignsNextIdAfterMax() {
-        storage.put(3L, trainer(3L));
-        storage.put(4L, trainer(4L));
+    void findByUsername_existingTrainer_returnsIt() {
+        trainerDao.create(trainer("Nodira", "Karimova", "Nodira.Karimova", yoga));
 
-        Trainer created = trainerDao.create(new Trainer());
-
-        assertEquals(5L, created.getUserId());
+        assertTrue(trainerDao.findByUsername("Nodira.Karimova").isPresent());
     }
 
     @Test
-    void update_existingTrainer_replacesIt() {
-        storage.put(3L, trainer(3L));
-        Trainer changed = trainer(3L);
-        changed.setLastName("Changed");
-
-        trainerDao.update(changed);
-
-        assertEquals("Changed", storage.get(3L).getLastName());
+    void findByUsername_unknownTrainer_returnsEmpty() {
+        assertTrue(trainerDao.findByUsername("Nobody.Here").isEmpty());
     }
 
     @Test
-    void update_notExistingTrainer_throwsException() {
-        assertThrows(NoSuchElementException.class, () -> trainerDao.update(trainer(99L)));
-        assertTrue(storage.isEmpty());
+    void findNotAssignedToTrainee_returnsOnlyTrainersNotLinkedToTrainee() {
+        Trainer assigned = trainerDao.create(trainer("Nodira", "Karimova", "Nodira.Karimova", yoga));
+        Trainer notAssigned = trainerDao.create(trainer("Rustam", "Aliyev", "Rustam.Aliyev", yoga));
+        Trainee trainee = trainee("John", "Smith", "John.Smith");
+        trainee.getTrainers().add(assigned);
+        traineeDao.create(trainee);
+        entityManager.flush();
+
+        List<Trainer> result = trainerDao.findNotAssignedToTrainee("John.Smith");
+
+        assertEquals(1, result.size());
+        assertEquals(notAssigned.getId(), result.get(0).getId());
     }
 
     @Test
-    void update_nullId_throwsException() {
-        assertThrows(IllegalArgumentException.class, () -> trainerDao.update(new Trainer()));
-    }
+    void findNotAssignedToTrainee_traineeWithoutTrainers_returnsAllTrainers() {
+        trainerDao.create(trainer("Nodira", "Karimova", "Nodira.Karimova", yoga));
+        trainerDao.create(trainer("Rustam", "Aliyev", "Rustam.Aliyev", yoga));
+        traineeDao.create(trainee("John", "Smith", "John.Smith"));
 
-    @Test
-    void findById_existingTrainer_returnsIt() {
-        Trainer trainer = trainer(3L);
-        storage.put(3L, trainer);
-
-        Optional<Trainer> result = trainerDao.findById(3L);
-
-        assertTrue(result.isPresent());
-        assertSame(trainer, result.get());
-    }
-
-    @Test
-    void findById_notExistingTrainer_returnsEmpty() {
-        assertTrue(trainerDao.findById(99L).isEmpty());
-    }
-
-    @Test
-    void findAll_returnsAllTrainers() {
-        storage.put(3L, trainer(3L));
-        storage.put(4L, trainer(4L));
-
-        assertEquals(2, trainerDao.findAll().size());
-    }
-
-    private Trainer trainer(Long id) {
-        Trainer trainer = new Trainer();
-        trainer.setUserId(id);
-        return trainer;
+        assertEquals(2, trainerDao.findNotAssignedToTrainee("John.Smith").size());
     }
 }

@@ -1,32 +1,49 @@
 package com.epam.gym.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
-public abstract class User {
-    private Long userId;
+@Entity
+@Table(name = "users")
+public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "first_name", nullable = false)
     private String firstName;
+
+    @Column(name = "last_name", nullable = false)
     private String lastName;
+
+    @Column(name = "username", nullable = false, unique = true)
     private String username;
+
+    @Column(name = "password", nullable = false)
     private String password;
+
+    @Column(name = "is_active", nullable = false)
     private boolean active;
 
     public User() {
     }
 
-    public User(Long userId, String firstName, String lastName, String username, String password, boolean active) {
-        this.userId = userId;
+    public User(String firstName, String lastName) {
         this.firstName = firstName;
         this.lastName = lastName;
-        this.username = username;
-        this.password = password;
-        this.active = active;
     }
 
-    public Long getUserId() {
-        return userId;
+    public Long getId() {
+        return id;
     }
 
-    public void setUserId(Long userId) {
-        this.userId = userId;
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getFirstName() {
@@ -72,11 +89,11 @@ public abstract class User {
     @Override
     public String toString() {
         return "User{" +
-                "userId=" + userId +
+                "id=" + id +
                 ", firstName='" + firstName + '\'' +
                 ", lastName='" + lastName + '\'' +
                 ", username='" + username + '\'' +
-                ", isActive=" + active +
+                ", active=" + active +
                 '}';
     }
 }

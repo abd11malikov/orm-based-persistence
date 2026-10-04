@@ -1,0 +1,72 @@
+{
+  "trainees": [
+    {
+      "userId": 1,
+      "firstName": "John",
+      "lastName": "Doe",
+      "username": "John.Doe",
+      "password": "aB3dE5gH7j",
+      "active": true,
+      "dateOfBirth": "1995-04-12",
+      "address": "12 Mustaqillik Avenue, Tashkent"
+    },
+    {
+      "userId": 2,
+      "firstName": "Alice",
+      "lastName": "Smith",
+      "username": "Alice.Smith",
+      "password": "kL9mN2pQ4r",
+      "active": true,
+      "dateOfBirth": "2000-09-25",
+      "address": "45 Buyuk Ipak Yoli, Samarkand"
+    }
+  ],
+  "trainers": [
+    {
+      "userId": 3,
+      "firstName": "Robert",
+      "lastName": "Taylor",
+      "username": "Robert.Taylor",
+      "password": "sT7uV1wX3y",
+      "active": true,
+      "specialization": {
+        "trainingTypeName": "Fitness"
+      }
+    },
+    {
+      "userId": 4,
+      "firstName": "Elena",
+      "lastName": "Vasilieva",
+      "username": "Elena.Vasilieva",
+      "password": "zA5bC8dE2f",
+      "active": true,
+      "specialization": {
+        "trainingTypeName": "Cardio"
+      }
+    }
+  ],
+  "trainings": [
+    {
+      "trainingId": 1,
+      "trainerId": 3,
+      "traineeId": 1,
+      "trainingName": "Full Body Fitness Routine",
+      "trainingType": {
+        "trainingTypeName": "Fitness"
+      },
+      "trainingDate": "2026-10-05",
+      "trainingDuration": 60
+    },
+    {
+      "trainingId": 2,
+      "trainerId": 4,
+      "traineeId": 2,
+      "trainingName": "High-Intensity Cardio Session",
+      "trainingType": {
+        "trainingTypeName": "Cardio"
+      },
+      "trainingDate": "2026-10-06",
+      "trainingDuration": 45
+    }
+  ]
+}

@@ -1,13 +1,20 @@
 package com.epam.gym.service;
 
+import com.epam.gym.dto.Credentials;
 import com.epam.gym.model.Trainer;
-
-import java.util.Optional;
 
 public interface TrainerService {
     Trainer create(Trainer trainer);
 
-    Trainer update(Trainer trainer);
+    boolean credentialsMatch(String username, String password);
 
-    Optional<Trainer> select(Long id);
+    Trainer selectByUsername(Credentials credentials, String username);
+
+    void changePassword(Credentials credentials, String newPassword);
+
+    Trainer updateProfile(Credentials credentials, Trainer changes);
+
+    void activate(Credentials credentials);
+
+    void deactivate(Credentials credentials);
 }

@@ -2,9 +2,11 @@ package com.epam.gym.service.impl;
 
 import com.epam.gym.dao.TrainerDao;
 import com.epam.gym.dao.TrainingTypeDao;
+import com.epam.gym.dto.Credentials;
 import com.epam.gym.model.Trainer;
 import com.epam.gym.model.TrainingType;
 import com.epam.gym.model.User;
+import com.epam.gym.service.AuthenticationService;
 import com.epam.gym.service.TrainerService;
 import com.epam.gym.util.PasswordGenerator;
 import com.epam.gym.util.UsernameGenerator;
@@ -15,7 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.NoSuchElementException;
-import java.util.Optional;
+
+import static com.epam.gym.util.ValidationUtils.requireNotBlank;
+import static com.epam.gym.util.ValidationUtils.requireNotNull;
 
 @Service
 @Transactional
@@ -24,6 +28,7 @@ public class TrainerServiceImpl implements TrainerService {
 
     private TrainerDao trainerDao;
     private TrainingTypeDao trainingTypeDao;
+    private AuthenticationService authenticationService;
     private UsernameGenerator usernameGenerator;
     private PasswordGenerator passwordGenerator;
 
@@ -38,6 +43,11 @@ public class TrainerServiceImpl implements TrainerService {
     }
 
     @Autowired
+    public void setAuthenticationService(AuthenticationService authenticationService) {
+        this.authenticationService = authenticationService;
+    }
+
+    @Autowired
     public void setUsernameGenerator(UsernameGenerator usernameGenerator) {
         this.usernameGenerator = usernameGenerator;
     }
@@ -49,49 +59,83 @@ public class TrainerServiceImpl implements TrainerService {
 
     @Override
     public Trainer create(Trainer trainer) {
+        validate(trainer);
+        trainer.setSpecialization(findTrainingType(trainer.getSpecialization().getTrainingTypeName()));
         User user = trainer.getUser();
-        if (user == null) {
-            throw new IllegalArgumentException("Trainer must have user data");
-        }
-        trainer.setSpecialization(findTrainingType(trainer.getSpecialization()));
         user.setUsername(usernameGenerator.generate(user.getFirstName(), user.getLastName()));
         user.setPassword(passwordGenerator.generate());
         user.setActive(true);
 
         Trainer created = trainerDao.create(trainer);
-        log.info("Created trainer with id {} and username {}", created.getId(), user.getUsername());
+        log.info("Created trainer with username {}", user.getUsername());
         return created;
     }
 
     @Override
-    public Trainer update(Trainer trainer) {
-        Long id = trainer.getId();
-        if (id == null) {
-            throw new IllegalArgumentException("Trainer id must not be null for update");
-        }
-        Trainer existing = trainerDao.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Trainer with id " + id + " not found"));
-
-        existing.getUser().setFirstName(trainer.getUser().getFirstName());
-        existing.getUser().setLastName(trainer.getUser().getLastName());
-        existing.setSpecialization(findTrainingType(trainer.getSpecialization()));
-
-        log.info("Updated trainer with id {}", id);
-        return existing;
+    @Transactional(readOnly = true)
+    public boolean credentialsMatch(String username, String password) {
+        return authenticationService.trainerCredentialsMatch(username, password);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Trainer> select(Long id) {
-        log.info("Selecting trainer with id {}", id);
-        return trainerDao.findById(id);
+    public Trainer selectByUsername(Credentials credentials, String username) {
+        authenticationService.authenticateUser(credentials);
+        Trainer trainer = trainerDao.findByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("Trainer " + username + " not found"));
+        log.info("Selected trainer {}", username);
+        return trainer;
     }
 
-    private TrainingType findTrainingType(TrainingType specialization) {
-        if (specialization == null || specialization.getTrainingTypeName() == null) {
-            throw new IllegalArgumentException("Trainer specialization is required");
+    @Override
+    public void changePassword(Credentials credentials, String newPassword) {
+        requireNotBlank(newPassword, "New password");
+        Trainer trainer = authenticationService.authenticateTrainer(credentials);
+        trainer.getUser().setPassword(newPassword);
+        log.info("Changed password for trainer {}", credentials.username());
+    }
+
+    @Override
+    public Trainer updateProfile(Credentials credentials, Trainer changes) {
+        validate(changes);
+        Trainer trainer = authenticationService.authenticateTrainer(credentials);
+        trainer.getUser().setFirstName(changes.getUser().getFirstName());
+        trainer.getUser().setLastName(changes.getUser().getLastName());
+        trainer.setSpecialization(findTrainingType(changes.getSpecialization().getTrainingTypeName()));
+        log.info("Updated profile of trainer {}", credentials.username());
+        return trainer;
+    }
+
+    @Override
+    public void activate(Credentials credentials) {
+        changeActiveStatus(credentials, true);
+    }
+
+    @Override
+    public void deactivate(Credentials credentials) {
+        changeActiveStatus(credentials, false);
+    }
+
+    private void changeActiveStatus(Credentials credentials, boolean active) {
+        Trainer trainer = authenticationService.authenticateTrainer(credentials);
+        if (trainer.getUser().isActive() == active) {
+            throw new IllegalStateException("Trainer " + credentials.username() + " is already "
+                    + (active ? "active" : "inactive"));
         }
-        String name = specialization.getTrainingTypeName();
+        trainer.getUser().setActive(active);
+        log.info("Trainer {} is now {}", credentials.username(), active ? "active" : "inactive");
+    }
+
+    private void validate(Trainer trainer) {
+        requireNotNull(trainer, "Trainer");
+        requireNotNull(trainer.getUser(), "Trainer user data");
+        requireNotBlank(trainer.getUser().getFirstName(), "First name");
+        requireNotBlank(trainer.getUser().getLastName(), "Last name");
+        requireNotNull(trainer.getSpecialization(), "Specialization");
+        requireNotBlank(trainer.getSpecialization().getTrainingTypeName(), "Specialization");
+    }
+
+    private TrainingType findTrainingType(String name) {
         return trainingTypeDao.findByName(name)
                 .orElseThrow(() -> new NoSuchElementException("Training type " + name + " not found"));
     }

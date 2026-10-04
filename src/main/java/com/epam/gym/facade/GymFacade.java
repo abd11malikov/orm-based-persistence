@@ -1,5 +1,7 @@
 package com.epam.gym.facade;
 
+import com.epam.gym.dto.Credentials;
+import com.epam.gym.dto.TrainingRequest;
 import com.epam.gym.model.Trainee;
 import com.epam.gym.model.Trainer;
 import com.epam.gym.model.Training;
@@ -11,8 +13,8 @@ import com.epam.gym.service.TrainingTypeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 public class GymFacade {
@@ -32,40 +34,86 @@ public class GymFacade {
         this.trainingTypeService = trainingTypeService;
     }
 
-    public Trainee createTrainee(Trainee trainee) {
-        return traineeService.create(trainee);
-    }
-
-    public Trainee updateTrainee(Trainee trainee) {
-        return traineeService.update(trainee);
-    }
-
-    public boolean deleteTrainee(Long id) {
-        return traineeService.delete(id);
-    }
-
-    public Optional<Trainee> selectTrainee(Long id) {
-        return traineeService.select(id);
-    }
-
     public Trainer createTrainer(Trainer trainer) {
         return trainerService.create(trainer);
     }
 
-    public Trainer updateTrainer(Trainer trainer) {
-        return trainerService.update(trainer);
+    public Trainee createTrainee(Trainee trainee) {
+        return traineeService.create(trainee);
     }
 
-    public Optional<Trainer> selectTrainer(Long id) {
-        return trainerService.select(id);
+    public boolean traineeCredentialsMatch(String username, String password) {
+        return traineeService.credentialsMatch(username, password);
     }
 
-    public Training createTraining(Training training) {
-        return trainingService.create(training);
+    public boolean trainerCredentialsMatch(String username, String password) {
+        return trainerService.credentialsMatch(username, password);
     }
 
-    public Optional<Training> selectTraining(Long id) {
-        return trainingService.select(id);
+    public Trainer selectTrainer(Credentials credentials, String username) {
+        return trainerService.selectByUsername(credentials, username);
+    }
+
+    public Trainee selectTrainee(Credentials credentials, String username) {
+        return traineeService.selectByUsername(credentials, username);
+    }
+
+    public void changeTraineePassword(Credentials credentials, String newPassword) {
+        traineeService.changePassword(credentials, newPassword);
+    }
+
+    public void changeTrainerPassword(Credentials credentials, String newPassword) {
+        trainerService.changePassword(credentials, newPassword);
+    }
+
+    public Trainer updateTrainer(Credentials credentials, Trainer changes) {
+        return trainerService.updateProfile(credentials, changes);
+    }
+
+    public Trainee updateTrainee(Credentials credentials, Trainee changes) {
+        return traineeService.updateProfile(credentials, changes);
+    }
+
+    public void activateTrainee(Credentials credentials) {
+        traineeService.activate(credentials);
+    }
+
+    public void deactivateTrainee(Credentials credentials) {
+        traineeService.deactivate(credentials);
+    }
+
+    public void activateTrainer(Credentials credentials) {
+        trainerService.activate(credentials);
+    }
+
+    public void deactivateTrainer(Credentials credentials) {
+        trainerService.deactivate(credentials);
+    }
+
+    public void deleteTrainee(Credentials credentials) {
+        traineeService.delete(credentials);
+    }
+
+    public List<Training> getTraineeTrainings(Credentials credentials, LocalDate fromDate, LocalDate toDate,
+                                              String trainerUsername, String trainingTypeName) {
+        return trainingService.getTraineeTrainings(credentials, fromDate, toDate, trainerUsername, trainingTypeName);
+    }
+
+    public List<Training> getTrainerTrainings(Credentials credentials, LocalDate fromDate, LocalDate toDate,
+                                              String traineeUsername) {
+        return trainingService.getTrainerTrainings(credentials, fromDate, toDate, traineeUsername);
+    }
+
+    public Training addTraining(Credentials credentials, TrainingRequest request) {
+        return trainingService.addTraining(credentials, request);
+    }
+
+    public List<Trainer> getUnassignedTrainers(Credentials credentials) {
+        return traineeService.getUnassignedTrainers(credentials);
+    }
+
+    public List<Trainer> updateTraineeTrainers(Credentials credentials, List<String> trainerUsernames) {
+        return traineeService.updateTrainers(credentials, trainerUsernames);
     }
 
     public List<TrainingType> getTrainingTypes() {

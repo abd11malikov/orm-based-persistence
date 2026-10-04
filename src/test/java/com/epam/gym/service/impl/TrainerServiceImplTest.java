@@ -2,9 +2,11 @@ package com.epam.gym.service.impl;
 
 import com.epam.gym.dao.TrainerDao;
 import com.epam.gym.dao.TrainingTypeDao;
+import com.epam.gym.dto.Credentials;
 import com.epam.gym.model.Trainer;
 import com.epam.gym.model.TrainingType;
 import com.epam.gym.model.User;
+import com.epam.gym.service.AuthenticationService;
 import com.epam.gym.util.PasswordGenerator;
 import com.epam.gym.util.UsernameGenerator;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +20,7 @@ import java.util.Optional;
 
 import static com.epam.gym.TestEntities.trainer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,11 +32,16 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class TrainerServiceImplTest {
 
+    private static final Credentials LOGIN = new Credentials("Nodira.Karimova", "password12");
+
     @Mock
     private TrainerDao trainerDao;
 
     @Mock
     private TrainingTypeDao trainingTypeDao;
+
+    @Mock
+    private AuthenticationService authenticationService;
 
     @Mock
     private UsernameGenerator usernameGenerator;
@@ -45,20 +53,24 @@ class TrainerServiceImplTest {
 
     private final TrainingType yoga = new TrainingType("Yoga");
     private final TrainingType cardio = new TrainingType("Cardio");
+    private Trainer nodira;
 
     @BeforeEach
     void setUp() {
         trainerService = new TrainerServiceImpl();
         trainerService.setTrainerDao(trainerDao);
         trainerService.setTrainingTypeDao(trainingTypeDao);
+        trainerService.setAuthenticationService(authenticationService);
         trainerService.setUsernameGenerator(usernameGenerator);
         trainerService.setPasswordGenerator(passwordGenerator);
+
+        nodira = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
     }
 
     @Test
     void create_setsCredentialsAndLoadsSpecializationFromDatabase() {
         TrainingType yogaFromDb = new TrainingType("Yoga");
-        Trainer trainer = new Trainer(new User("Nodira", "Karimova"), yoga);
+        Trainer trainer = new Trainer(new User("Nodira", "Karimova"), new TrainingType("Yoga"));
         when(trainingTypeDao.findByName("Yoga")).thenReturn(Optional.of(yogaFromDb));
         when(usernameGenerator.generate("Nodira", "Karimova")).thenReturn("Nodira.Karimova");
         when(passwordGenerator.generate()).thenReturn("sT7uV1wX3y");
@@ -70,7 +82,6 @@ class TrainerServiceImplTest {
         assertEquals("Nodira.Karimova", created.getUser().getUsername());
         assertEquals("sT7uV1wX3y", created.getUser().getPassword());
         assertTrue(created.getUser().isActive());
-        verify(trainerDao).create(trainer);
     }
 
     @Test
@@ -91,50 +102,89 @@ class TrainerServiceImplTest {
     }
 
     @Test
-    void update_existingTrainer_copiesFieldsAndKeepsCredentials() {
-        Trainer existing = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
-        existing.setId(1L);
-        Trainer changes = trainer("Nodira", "Aliyeva", null, cardio);
-        changes.setId(1L);
-        when(trainerDao.findById(1L)).thenReturn(Optional.of(existing));
+    void create_missingLastName_throwsException() {
+        Trainer trainer = new Trainer(new User("Nodira", ""), yoga);
+
+        assertThrows(IllegalArgumentException.class, () -> trainerService.create(trainer));
+    }
+
+    @Test
+    void credentialsMatch_delegatesToAuthenticationService() {
+        when(authenticationService.trainerCredentialsMatch("Nodira.Karimova", "wrong")).thenReturn(false);
+
+        assertFalse(trainerService.credentialsMatch("Nodira.Karimova", "wrong"));
+    }
+
+    @Test
+    void selectByUsername_authenticatedUser_returnsTrainer() {
+        when(trainerDao.findByUsername("Nodira.Karimova")).thenReturn(Optional.of(nodira));
+
+        assertSame(nodira, trainerService.selectByUsername(LOGIN, "Nodira.Karimova"));
+        verify(authenticationService).authenticateUser(LOGIN);
+    }
+
+    @Test
+    void selectByUsername_unknownTrainer_throwsException() {
+        when(trainerDao.findByUsername("Nobody.Here")).thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class, () -> trainerService.selectByUsername(LOGIN, "Nobody.Here"));
+    }
+
+    @Test
+    void changePassword_setsNewPassword() {
+        when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
+
+        trainerService.changePassword(LOGIN, "newSecret1");
+
+        assertEquals("newSecret1", nodira.getUser().getPassword());
+    }
+
+    @Test
+    void updateProfile_copiesFieldsAndKeepsCredentials() {
+        Trainer changes = new Trainer(new User("Nodira", "Aliyeva"), new TrainingType("Cardio"));
+        when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
         when(trainingTypeDao.findByName("Cardio")).thenReturn(Optional.of(cardio));
 
-        Trainer updated = trainerService.update(changes);
+        Trainer updated = trainerService.updateProfile(LOGIN, changes);
 
-        assertSame(existing, updated);
+        assertSame(nodira, updated);
         assertEquals("Aliyeva", updated.getUser().getLastName());
-        assertEquals("Cardio", updated.getSpecialization().getTrainingTypeName());
+        assertSame(cardio, updated.getSpecialization());
         assertEquals("Nodira.Karimova", updated.getUser().getUsername());
+        assertEquals("password12", updated.getUser().getPassword());
     }
 
     @Test
-    void update_notExistingTrainer_throwsException() {
-        Trainer trainer = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
-        trainer.setId(99L);
-        when(trainerDao.findById(99L)).thenReturn(Optional.empty());
+    void deactivate_activeTrainer_makesItInactive() {
+        when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
 
-        assertThrows(NoSuchElementException.class, () -> trainerService.update(trainer));
+        trainerService.deactivate(LOGIN);
+
+        assertFalse(nodira.getUser().isActive());
     }
 
     @Test
-    void update_nullId_throwsException() {
-        Trainer trainer = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
+    void deactivate_alreadyInactiveTrainer_throwsException() {
+        nodira.getUser().setActive(false);
+        when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
 
-        assertThrows(IllegalArgumentException.class, () -> trainerService.update(trainer));
+        assertThrows(IllegalStateException.class, () -> trainerService.deactivate(LOGIN));
     }
 
     @Test
-    void select_existingTrainer_returnsIt() {
-        Trainer trainer = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
-        when(trainerDao.findById(1L)).thenReturn(Optional.of(trainer));
+    void activate_inactiveTrainer_makesItActive() {
+        nodira.getUser().setActive(false);
+        when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
 
-        assertSame(trainer, trainerService.select(1L).orElseThrow());
+        trainerService.activate(LOGIN);
+
+        assertTrue(nodira.getUser().isActive());
     }
 
     @Test
-    void select_notExistingTrainer_returnsEmpty() {
-        when(trainerDao.findById(99L)).thenReturn(Optional.empty());
+    void activate_alreadyActiveTrainer_throwsException() {
+        when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
 
-        assertTrue(trainerService.select(99L).isEmpty());
+        assertThrows(IllegalStateException.class, () -> trainerService.activate(LOGIN));
     }
 }

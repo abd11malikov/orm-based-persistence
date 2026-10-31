@@ -11,7 +11,6 @@ import com.epam.gym.model.User;
 import com.epam.gym.service.AuthenticationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,22 +22,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationServiceImpl.class);
     private static final String INVALID_CREDENTIALS = "Invalid username or password";
 
-    private TraineeDao traineeDao;
-    private TrainerDao trainerDao;
-    private UserDao userDao;
+    private final TraineeDao traineeDao;
+    private final TrainerDao trainerDao;
+    private final UserDao userDao;
 
-    @Autowired
-    public void setTraineeDao(TraineeDao traineeDao) {
+    public AuthenticationServiceImpl(TraineeDao traineeDao,
+                                     TrainerDao trainerDao,
+                                     UserDao userDao) {
         this.traineeDao = traineeDao;
-    }
-
-    @Autowired
-    public void setTrainerDao(TrainerDao trainerDao) {
         this.trainerDao = trainerDao;
-    }
-
-    @Autowired
-    public void setUserDao(UserDao userDao) {
         this.userDao = userDao;
     }
 

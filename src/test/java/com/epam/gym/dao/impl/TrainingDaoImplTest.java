@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static com.epam.gym.TestEntities.trainee;
 import static com.epam.gym.TestEntities.trainer;
@@ -46,20 +47,17 @@ class TrainingDaoImplTest {
     @Autowired
     private TrainingTypeDao trainingTypeDao;
 
-    private Trainee john;
     private Trainee jane;
-    private Trainer nodira;
     private Trainer rustam;
-    private TrainingType yoga;
     private TrainingType cardio;
 
     @BeforeEach
     void setUp() {
-        yoga = trainingTypeDao.findByName("Yoga").orElseThrow();
+        TrainingType yoga = trainingTypeDao.findByName("Yoga").orElseThrow();
         cardio = trainingTypeDao.findByName("Cardio").orElseThrow();
-        john = traineeDao.create(trainee("John", "Smith", "John.Smith"));
+        Trainee john = traineeDao.create(trainee("John", "Smith", "John.Smith"));
         jane = traineeDao.create(trainee("Jane", "Doe", "Jane.Doe"));
-        nodira = trainerDao.create(trainer("Nodira", "Karimova", "Nodira.Karimova", yoga));
+        Trainer nodira = trainerDao.create(trainer("Nodira", "Karimova", "Nodira.Karimova", yoga));
         rustam = trainerDao.create(trainer("Rustam", "Aliyev", "Rustam.Aliyev", cardio));
 
         trainingDao.create(training(john, nodira, yoga, "Yoga January", JAN_10));
@@ -70,62 +68,112 @@ class TrainingDaoImplTest {
 
     @Test
     void findById_existingTraining_returnsIt() {
+        // given
         Training created = trainingDao.create(training(jane, rustam, cardio, "Extra", MAR_10));
 
-        assertEquals("Extra", trainingDao.findById(created.getId()).orElseThrow().getTrainingName());
+        // when
+        Optional<Training> training = trainingDao.findById(created.getId());
+
+        // then
+        assertTrue(training.isPresent());
+        assertEquals("Extra", training.get().getTrainingName());
     }
 
     @Test
     void findById_unknownTraining_returnsEmpty() {
-        assertTrue(trainingDao.findById(9999L).isEmpty());
+        // given
+        Long unknownId = 9999L;
+
+        // when
+        Optional<Training> training = trainingDao.findById(unknownId);
+
+        // then
+        assertTrue(training.isEmpty());
     }
 
     @Test
     void findTraineeTrainings_noCriteria_returnsAllTraineeTrainingsSortedByDate() {
-        List<Training> result = trainingDao.findTraineeTrainings("John.Smith", null, null, null, null);
+        // given
+        String traineeUsername = "John.Smith";
 
+        // when
+        List<Training> result = trainingDao.findTraineeTrainings(traineeUsername, null, null, null, null);
+
+        // then
         assertEquals(List.of("Yoga January", "Cardio February", "Yoga March"), names(result));
     }
 
     @Test
     void findTraineeTrainings_dateRange_returnsTrainingsInsideRange() {
-        List<Training> result = trainingDao.findTraineeTrainings("John.Smith", FEB_10, MAR_10, null, null);
+        // given
+        LocalDate from = FEB_10;
+        LocalDate to = MAR_10;
 
+        // when
+        List<Training> result = trainingDao.findTraineeTrainings("John.Smith", from, to, null, null);
+
+        // then
         assertEquals(List.of("Cardio February", "Yoga March"), names(result));
     }
 
     @Test
     void findTraineeTrainings_byTrainer_returnsOnlyThatTrainersTrainings() {
-        List<Training> result = trainingDao.findTraineeTrainings("John.Smith", null, null, "Nodira.Karimova", null);
+        // given
+        String trainerUsername = "Nodira.Karimova";
 
+        // when
+        List<Training> result = trainingDao.findTraineeTrainings("John.Smith", null, null, trainerUsername, null);
+
+        // then
         assertEquals(List.of("Yoga January", "Yoga March"), names(result));
     }
 
     @Test
     void findTraineeTrainings_byType_returnsOnlyThatType() {
-        List<Training> result = trainingDao.findTraineeTrainings("John.Smith", null, null, null, "Cardio");
+        // given
+        String trainingType = "Cardio";
 
+        // when
+        List<Training> result = trainingDao.findTraineeTrainings("John.Smith", null, null, null, trainingType);
+
+        // then
         assertEquals(List.of("Cardio February"), names(result));
     }
 
     @Test
     void findTraineeTrainings_allCriteria_combinesThem() {
-        List<Training> result = trainingDao.findTraineeTrainings("John.Smith", JAN_10, FEB_10, "Nodira.Karimova", "Yoga");
+        // given
+        LocalDate from = JAN_10;
+        LocalDate to = FEB_10;
 
+        // when
+        List<Training> result = trainingDao.findTraineeTrainings("John.Smith", from, to, "Nodira.Karimova", "Yoga");
+
+        // then
         assertEquals(List.of("Yoga January"), names(result));
     }
 
     @Test
     void findTrainerTrainings_noCriteria_returnsAllTrainerTrainings() {
-        List<Training> result = trainingDao.findTrainerTrainings("Nodira.Karimova", null, null, null);
+        // given
+        String trainerUsername = "Nodira.Karimova";
 
+        // when
+        List<Training> result = trainingDao.findTrainerTrainings(trainerUsername, null, null, null);
+
+        // then
         assertEquals(List.of("Yoga January", "Jane Yoga", "Yoga March"), names(result));
     }
 
     @Test
     void findTrainerTrainings_byTraineeAndDate_combinesThem() {
-        List<Training> result = trainingDao.findTrainerTrainings("Nodira.Karimova", FEB_10, null, "John.Smith");
+        // given
+        LocalDate from = FEB_10;
 
+        // when
+        List<Training> result = trainingDao.findTrainerTrainings("Nodira.Karimova", from, null, "John.Smith");
+
+        // then
         assertEquals(List.of("Yoga March"), names(result));
     }
 

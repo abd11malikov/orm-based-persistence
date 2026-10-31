@@ -19,6 +19,8 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
 import static com.epam.gym.TestEntities.trainee;
 import static com.epam.gym.TestEntities.trainer;
@@ -54,10 +56,15 @@ class TraineeDaoImplTest {
 
     @Test
     void create_savesTraineeAndItsUser() {
-        Trainee created = traineeDao.create(trainee("John", "Smith", "John.Smith"));
+        // given
+        Trainee trainee = trainee("John", "Smith", "John.Smith");
+
+        // when
+        Trainee created = traineeDao.create(trainee);
         entityManager.flush();
         entityManager.clear();
 
+        // then
         Trainee loaded = traineeDao.findById(created.getId()).orElseThrow();
         assertNotNull(loaded.getUser().getId());
         assertEquals("John.Smith", loaded.getUser().getUsername());
@@ -66,26 +73,44 @@ class TraineeDaoImplTest {
 
     @Test
     void findByUsername_existingTrainee_returnsIt() {
+        // given
         traineeDao.create(trainee("John", "Smith", "John.Smith"));
 
-        assertTrue(traineeDao.findByUsername("John.Smith").isPresent());
+        // when
+        Optional<Trainee> trainee = traineeDao.findByUsername("John.Smith");
+
+        // then
+        assertTrue(trainee.isPresent());
     }
 
     @Test
     void findByUsername_unknownTrainee_returnsEmpty() {
-        assertTrue(traineeDao.findByUsername("Nobody.Here").isEmpty());
+        // given
+        String username = "Nobody.Here";
+
+        // when
+        Optional<Trainee> trainee = traineeDao.findByUsername(username);
+
+        // then
+        assertTrue(trainee.isEmpty());
     }
 
     @Test
     void findAll_returnsAllTrainees() {
+        // given
         traineeDao.create(trainee("John", "Smith", "John.Smith"));
         traineeDao.create(trainee("Jane", "Smith", "Jane.Smith"));
 
-        assertEquals(2, traineeDao.findAll().size());
+        // when
+        List<Trainee> trainees = traineeDao.findAll();
+
+        // then
+        assertEquals(2, trainees.size());
     }
 
     @Test
     void delete_removesTraineeUserTrainingsAndTrainerLinks() {
+        // given
         TrainingType yoga = trainingTypeDao.findByName("Yoga").orElseThrow();
         Trainer trainer = trainerDao.create(trainer("Nodira", "Karimova", "Nodira.Karimova", yoga));
         Trainee trainee = trainee("John", "Smith", "John.Smith");
@@ -95,10 +120,12 @@ class TraineeDaoImplTest {
         entityManager.flush();
         entityManager.clear();
 
+        // when
         traineeDao.delete(traineeDao.findById(trainee.getId()).orElseThrow());
         entityManager.flush();
         entityManager.clear();
 
+        // then
         assertTrue(traineeDao.findById(trainee.getId()).isEmpty());
         assertFalse(userDao.existsByUsername("John.Smith"));
         assertNull(entityManager.find(Training.class, training.getId()));

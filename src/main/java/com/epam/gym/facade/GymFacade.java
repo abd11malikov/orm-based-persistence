@@ -10,7 +10,6 @@ import com.epam.gym.service.TraineeService;
 import com.epam.gym.service.TrainerService;
 import com.epam.gym.service.TrainingService;
 import com.epam.gym.service.TrainingTypeService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -23,7 +22,6 @@ public class GymFacade {
     private final TrainingService trainingService;
     private final TrainingTypeService trainingTypeService;
 
-    @Autowired
     public GymFacade(TraineeService traineeService,
                      TrainerService trainerService,
                      TrainingService trainingService,

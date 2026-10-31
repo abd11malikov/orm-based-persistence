@@ -29,29 +29,45 @@ class PersistenceConfigTest {
     private PlatformTransactionManager transactionManager;
 
     @Test
-    void persistenceBeansAreCreated() {
-        assertNotNull(dataSource);
-        assertNotNull(entityManagerFactory);
-        assertNotNull(transactionManager);
+    void contextStartup_createsPersistenceBeans() {
+        // given
+        Object[] persistenceBeans = {dataSource, entityManagerFactory, transactionManager};
+
+        // when
+        boolean entityManagerFactoryIsOpen = entityManagerFactory.isOpen();
+
+        // then
+        for (Object bean : persistenceBeans) {
+            assertNotNull(bean);
+        }
+        assertTrue(entityManagerFactoryIsOpen);
     }
 
     @Test
     void schemaScriptCreatesAllTables() {
+        // given
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        List<String> expectedTables =
+                List.of("users", "trainees", "trainers", "training_types", "trainings", "trainee_trainer");
 
-        for (String table : List.of("users", "trainees", "trainers", "training_types", "trainings", "trainee_trainer")) {
-            Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class);
-            assertNotNull(count, "Table " + table + " should exist");
-        }
+        // when
+        List<String> existingTables = jdbc.queryForList(
+                "SELECT LOWER(table_name) FROM information_schema.tables", String.class);
+
+        // then
+        assertTrue(existingTables.containsAll(expectedTables), "Existing tables: " + existingTables);
     }
 
     @Test
     void dataScriptInsertsTrainingTypes() {
+        // given
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
 
+        // when
         List<String> names = jdbc.queryForList(
                 "SELECT training_type_name FROM training_types ORDER BY training_type_name", String.class);
 
+        // then
         assertEquals(6, names.size());
         assertTrue(names.contains("Yoga"));
         assertTrue(names.contains("Cardio"));

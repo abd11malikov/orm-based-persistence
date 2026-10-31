@@ -52,151 +52,266 @@ class GymFacadeTest {
 
     @Test
     void createTrainer_delegatesToTrainerService() {
+        // given
         Trainer trainer = new Trainer();
         when(trainerService.create(trainer)).thenReturn(trainer);
 
-        assertSame(trainer, facade.createTrainer(trainer));
+        // when
+        Trainer result = facade.createTrainer(trainer);
+
+        // then
+        assertSame(trainer, result);
     }
 
     @Test
     void createTrainee_delegatesToTraineeService() {
+        // given
         Trainee trainee = new Trainee();
         when(traineeService.create(trainee)).thenReturn(trainee);
 
-        assertSame(trainee, facade.createTrainee(trainee));
+        // when
+        Trainee result = facade.createTrainee(trainee);
+
+        // then
+        assertSame(trainee, result);
     }
 
     @Test
     void traineeCredentialsMatch_delegatesToTraineeService() {
+        // given
         when(traineeService.credentialsMatch("John.Smith", "password12")).thenReturn(true);
 
-        assertTrue(facade.traineeCredentialsMatch("John.Smith", "password12"));
+        // when
+        boolean matches = facade.traineeCredentialsMatch("John.Smith", "password12");
+
+        // then
+        assertTrue(matches);
     }
 
     @Test
     void trainerCredentialsMatch_delegatesToTrainerService() {
+        // given
         when(trainerService.credentialsMatch("Nodira.Karimova", "password12")).thenReturn(true);
 
-        assertTrue(facade.trainerCredentialsMatch("Nodira.Karimova", "password12"));
+        // when
+        boolean matches = facade.trainerCredentialsMatch("Nodira.Karimova", "password12");
+
+        // then
+        assertTrue(matches);
     }
 
     @Test
     void selectTrainer_delegatesToTrainerService() {
+        // given
         Trainer trainer = new Trainer();
         when(trainerService.selectByUsername(LOGIN, "Nodira.Karimova")).thenReturn(trainer);
 
-        assertSame(trainer, facade.selectTrainer(LOGIN, "Nodira.Karimova"));
+        // when
+        Trainer result = facade.selectTrainer(LOGIN, "Nodira.Karimova");
+
+        // then
+        assertSame(trainer, result);
     }
 
     @Test
     void selectTrainee_delegatesToTraineeService() {
+        // given
         Trainee trainee = new Trainee();
         when(traineeService.selectByUsername(LOGIN, "John.Smith")).thenReturn(trainee);
 
-        assertSame(trainee, facade.selectTrainee(LOGIN, "John.Smith"));
+        // when
+        Trainee result = facade.selectTrainee(LOGIN, "John.Smith");
+
+        // then
+        assertSame(trainee, result);
     }
 
     @Test
     void changeTraineePassword_delegatesToTraineeService() {
-        facade.changeTraineePassword(LOGIN, "newSecret1");
+        // given
+        String newPassword = "newSecret1";
 
-        verify(traineeService).changePassword(LOGIN, "newSecret1");
+        // when
+        facade.changeTraineePassword(LOGIN, newPassword);
+
+        // then
+        verify(traineeService).changePassword(LOGIN, newPassword);
     }
 
     @Test
     void changeTrainerPassword_delegatesToTrainerService() {
-        facade.changeTrainerPassword(LOGIN, "newSecret1");
+        // given
+        String newPassword = "newSecret1";
 
-        verify(trainerService).changePassword(LOGIN, "newSecret1");
+        // when
+        facade.changeTrainerPassword(LOGIN, newPassword);
+
+        // then
+        verify(trainerService).changePassword(LOGIN, newPassword);
     }
 
     @Test
     void updateTrainer_delegatesToTrainerService() {
+        // given
         Trainer changes = new Trainer();
         when(trainerService.updateProfile(LOGIN, changes)).thenReturn(changes);
 
-        assertSame(changes, facade.updateTrainer(LOGIN, changes));
+        // when
+        Trainer result = facade.updateTrainer(LOGIN, changes);
+
+        // then
+        assertSame(changes, result);
     }
 
     @Test
     void updateTrainee_delegatesToTraineeService() {
+        // given
         Trainee changes = new Trainee();
         when(traineeService.updateProfile(LOGIN, changes)).thenReturn(changes);
 
-        assertSame(changes, facade.updateTrainee(LOGIN, changes));
+        // when
+        Trainee result = facade.updateTrainee(LOGIN, changes);
+
+        // then
+        assertSame(changes, result);
     }
 
     @Test
-    void activateAndDeactivateTrainee_delegateToTraineeService() {
-        facade.activateTrainee(LOGIN);
-        facade.deactivateTrainee(LOGIN);
+    void activateTrainee_delegatesToTraineeService() {
+        // given
+        Credentials credentials = LOGIN;
 
-        verify(traineeService).activate(LOGIN);
-        verify(traineeService).deactivate(LOGIN);
+        // when
+        facade.activateTrainee(credentials);
+
+        // then
+        verify(traineeService).activate(credentials);
     }
 
     @Test
-    void activateAndDeactivateTrainer_delegateToTrainerService() {
-        facade.activateTrainer(LOGIN);
-        facade.deactivateTrainer(LOGIN);
+    void deactivateTrainee_delegatesToTraineeService() {
+        // given
+        Credentials credentials = LOGIN;
 
-        verify(trainerService).activate(LOGIN);
-        verify(trainerService).deactivate(LOGIN);
+        // when
+        facade.deactivateTrainee(credentials);
+
+        // then
+        verify(traineeService).deactivate(credentials);
+    }
+
+    @Test
+    void activateTrainer_delegatesToTrainerService() {
+        // given
+        Credentials credentials = LOGIN;
+
+        // when
+        facade.activateTrainer(credentials);
+
+        // then
+        verify(trainerService).activate(credentials);
+    }
+
+    @Test
+    void deactivateTrainer_delegatesToTrainerService() {
+        // given
+        Credentials credentials = LOGIN;
+
+        // when
+        facade.deactivateTrainer(credentials);
+
+        // then
+        verify(trainerService).deactivate(credentials);
     }
 
     @Test
     void deleteTrainee_delegatesToTraineeService() {
-        facade.deleteTrainee(LOGIN);
+        // given
+        Credentials credentials = LOGIN;
 
-        verify(traineeService).delete(LOGIN);
+        // when
+        facade.deleteTrainee(credentials);
+
+        // then
+        verify(traineeService).delete(credentials);
     }
 
     @Test
     void getTraineeTrainings_delegatesToTrainingService() {
+        // given
         List<Training> trainings = List.of(new Training());
         when(trainingService.getTraineeTrainings(LOGIN, DATE, DATE, "Nodira.Karimova", "Yoga")).thenReturn(trainings);
 
-        assertEquals(trainings, facade.getTraineeTrainings(LOGIN, DATE, DATE, "Nodira.Karimova", "Yoga"));
+        // when
+        List<Training> result = facade.getTraineeTrainings(LOGIN, DATE, DATE, "Nodira.Karimova", "Yoga");
+
+        // then
+        assertEquals(trainings, result);
     }
 
     @Test
     void getTrainerTrainings_delegatesToTrainingService() {
+        // given
         List<Training> trainings = List.of(new Training());
         when(trainingService.getTrainerTrainings(LOGIN, DATE, DATE, "John.Smith")).thenReturn(trainings);
 
-        assertEquals(trainings, facade.getTrainerTrainings(LOGIN, DATE, DATE, "John.Smith"));
+        // when
+        List<Training> result = facade.getTrainerTrainings(LOGIN, DATE, DATE, "John.Smith");
+
+        // then
+        assertEquals(trainings, result);
     }
 
     @Test
     void addTraining_delegatesToTrainingService() {
+        // given
         TrainingRequest request = new TrainingRequest("John.Smith", "Nodira.Karimova", "Yoga", "Yoga", DATE, 60);
         Training training = new Training();
         when(trainingService.addTraining(LOGIN, request)).thenReturn(training);
 
-        assertSame(training, facade.addTraining(LOGIN, request));
+        // when
+        Training result = facade.addTraining(LOGIN, request);
+
+        // then
+        assertSame(training, result);
     }
 
     @Test
     void getUnassignedTrainers_delegatesToTraineeService() {
+        // given
         List<Trainer> trainers = List.of(new Trainer());
         when(traineeService.getUnassignedTrainers(LOGIN)).thenReturn(trainers);
 
-        assertEquals(trainers, facade.getUnassignedTrainers(LOGIN));
+        // when
+        List<Trainer> result = facade.getUnassignedTrainers(LOGIN);
+
+        // then
+        assertEquals(trainers, result);
     }
 
     @Test
     void updateTraineeTrainers_delegatesToTraineeService() {
+        // given
         List<Trainer> trainers = List.of(new Trainer());
         when(traineeService.updateTrainers(LOGIN, List.of("Nodira.Karimova"))).thenReturn(trainers);
 
-        assertEquals(trainers, facade.updateTraineeTrainers(LOGIN, List.of("Nodira.Karimova")));
+        // when
+        List<Trainer> result = facade.updateTraineeTrainers(LOGIN, List.of("Nodira.Karimova"));
+
+        // then
+        assertEquals(trainers, result);
     }
 
     @Test
     void getTrainingTypes_delegatesToTrainingTypeService() {
+        // given
         List<TrainingType> types = List.of(new TrainingType("Yoga"));
         when(trainingTypeService.findAll()).thenReturn(types);
 
-        assertEquals(types, facade.getTrainingTypes());
+        // when
+        List<TrainingType> result = facade.getTrainingTypes();
+
+        // then
+        assertEquals(types, result);
     }
 }

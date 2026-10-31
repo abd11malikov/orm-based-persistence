@@ -12,7 +12,6 @@ import com.epam.gym.util.PasswordGenerator;
 import com.epam.gym.util.UsernameGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,34 +25,21 @@ import static com.epam.gym.util.ValidationUtils.requireNotNull;
 public class TrainerServiceImpl implements TrainerService {
     private static final Logger log = LoggerFactory.getLogger(TrainerServiceImpl.class);
 
-    private TrainerDao trainerDao;
-    private TrainingTypeDao trainingTypeDao;
-    private AuthenticationService authenticationService;
-    private UsernameGenerator usernameGenerator;
-    private PasswordGenerator passwordGenerator;
+    private final TrainerDao trainerDao;
+    private final TrainingTypeDao trainingTypeDao;
+    private final AuthenticationService authenticationService;
+    private final UsernameGenerator usernameGenerator;
+    private final PasswordGenerator passwordGenerator;
 
-    @Autowired
-    public void setTrainerDao(TrainerDao trainerDao) {
+    public TrainerServiceImpl(TrainerDao trainerDao,
+                              TrainingTypeDao trainingTypeDao,
+                              AuthenticationService authenticationService,
+                              UsernameGenerator usernameGenerator,
+                              PasswordGenerator passwordGenerator) {
         this.trainerDao = trainerDao;
-    }
-
-    @Autowired
-    public void setTrainingTypeDao(TrainingTypeDao trainingTypeDao) {
         this.trainingTypeDao = trainingTypeDao;
-    }
-
-    @Autowired
-    public void setAuthenticationService(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
-    }
-
-    @Autowired
-    public void setUsernameGenerator(UsernameGenerator usernameGenerator) {
         this.usernameGenerator = usernameGenerator;
-    }
-
-    @Autowired
-    public void setPasswordGenerator(PasswordGenerator passwordGenerator) {
         this.passwordGenerator = passwordGenerator;
     }
 

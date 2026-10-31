@@ -20,6 +20,7 @@ import java.util.Optional;
 import static com.epam.gym.TestEntities.trainee;
 import static com.epam.gym.TestEntities.trainer;
 import static com.epam.gym.TestEntities.user;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -28,6 +29,8 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthenticationServiceImplTest {
+
+    private static final String INVALID_CREDENTIALS = "Invalid username or password";
 
     @Mock
     private TraineeDao traineeDao;
@@ -42,100 +45,164 @@ class AuthenticationServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        authenticationService = new AuthenticationServiceImpl();
-        authenticationService.setTraineeDao(traineeDao);
-        authenticationService.setTrainerDao(trainerDao);
-        authenticationService.setUserDao(userDao);
+        authenticationService = new AuthenticationServiceImpl(traineeDao, trainerDao, userDao);
     }
 
     @Test
     void traineeCredentialsMatch_correctPassword_returnsTrue() {
+        // given
         when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(trainee("John", "Smith", "John.Smith")));
 
-        assertTrue(authenticationService.traineeCredentialsMatch("John.Smith", "password12"));
+        // when
+        boolean matches = authenticationService.traineeCredentialsMatch("John.Smith", "password12");
+
+        // then
+        assertTrue(matches);
     }
 
     @Test
     void traineeCredentialsMatch_wrongPassword_returnsFalse() {
+        // given
         when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(trainee("John", "Smith", "John.Smith")));
 
-        assertFalse(authenticationService.traineeCredentialsMatch("John.Smith", "wrong"));
+        // when
+        boolean matches = authenticationService.traineeCredentialsMatch("John.Smith", "wrong");
+
+        // then
+        assertFalse(matches);
     }
 
     @Test
     void traineeCredentialsMatch_unknownUser_returnsFalse() {
+        // given
         when(traineeDao.findByUsername("Nobody.Here")).thenReturn(Optional.empty());
 
-        assertFalse(authenticationService.traineeCredentialsMatch("Nobody.Here", "password12"));
+        // when
+        boolean matches = authenticationService.traineeCredentialsMatch("Nobody.Here", "password12");
+
+        // then
+        assertFalse(matches);
     }
 
     @Test
     void trainerCredentialsMatch_correctPassword_returnsTrue() {
+        // given
         Trainer trainer = trainer("Nodira", "Karimova", "Nodira.Karimova", new TrainingType("Yoga"));
         when(trainerDao.findByUsername("Nodira.Karimova")).thenReturn(Optional.of(trainer));
 
-        assertTrue(authenticationService.trainerCredentialsMatch("Nodira.Karimova", "password12"));
+        // when
+        boolean matches = authenticationService.trainerCredentialsMatch("Nodira.Karimova", "password12");
+
+        // then
+        assertTrue(matches);
     }
 
     @Test
     void authenticateTrainee_correctCredentials_returnsTrainee() {
+        // given
         Trainee trainee = trainee("John", "Smith", "John.Smith");
         when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(trainee));
 
-        assertSame(trainee, authenticationService.authenticateTrainee(new Credentials("John.Smith", "password12")));
+        // when
+        Trainee result = authenticationService.authenticateTrainee(new Credentials("John.Smith", "password12"));
+
+        // then
+        assertSame(trainee, result);
     }
 
     @Test
     void authenticateTrainee_wrongPassword_throwsException() {
+        // given
         when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(trainee("John", "Smith", "John.Smith")));
+        Credentials credentials = new Credentials("John.Smith", "wrong");
 
-        assertThrows(AuthenticationFailedException.class,
-                () -> authenticationService.authenticateTrainee(new Credentials("John.Smith", "wrong")));
+        // when
+        AuthenticationFailedException exception = assertThrows(AuthenticationFailedException.class,
+                () -> authenticationService.authenticateTrainee(credentials));
+
+        // then
+        assertEquals(INVALID_CREDENTIALS, exception.getMessage());
     }
 
     @Test
     void authenticateTrainee_trainerUsername_throwsException() {
+        // given
         when(traineeDao.findByUsername("Nodira.Karimova")).thenReturn(Optional.empty());
+        Credentials credentials = new Credentials("Nodira.Karimova", "password12");
 
-        assertThrows(AuthenticationFailedException.class,
-                () -> authenticationService.authenticateTrainee(new Credentials("Nodira.Karimova", "password12")));
+        // when
+        AuthenticationFailedException exception = assertThrows(AuthenticationFailedException.class,
+                () -> authenticationService.authenticateTrainee(credentials));
+
+        // then
+        assertEquals(INVALID_CREDENTIALS, exception.getMessage());
     }
 
     @Test
     void authenticateTrainee_nullCredentials_throwsException() {
-        assertThrows(AuthenticationFailedException.class, () -> authenticationService.authenticateTrainee(null));
+        // given
+        Credentials credentials = null;
+
+        // when
+        AuthenticationFailedException exception = assertThrows(AuthenticationFailedException.class,
+                () -> authenticationService.authenticateTrainee(credentials));
+
+        // then
+        assertEquals(INVALID_CREDENTIALS, exception.getMessage());
     }
 
     @Test
     void authenticateTrainer_correctCredentials_returnsTrainer() {
+        // given
         Trainer trainer = trainer("Nodira", "Karimova", "Nodira.Karimova", new TrainingType("Yoga"));
         when(trainerDao.findByUsername("Nodira.Karimova")).thenReturn(Optional.of(trainer));
 
-        assertSame(trainer, authenticationService.authenticateTrainer(new Credentials("Nodira.Karimova", "password12")));
+        // when
+        Trainer result = authenticationService.authenticateTrainer(new Credentials("Nodira.Karimova", "password12"));
+
+        // then
+        assertSame(trainer, result);
     }
 
     @Test
     void authenticateTrainer_wrongPassword_throwsException() {
+        // given
         Trainer trainer = trainer("Nodira", "Karimova", "Nodira.Karimova", new TrainingType("Yoga"));
         when(trainerDao.findByUsername("Nodira.Karimova")).thenReturn(Optional.of(trainer));
+        Credentials credentials = new Credentials("Nodira.Karimova", "wrong");
 
-        assertThrows(AuthenticationFailedException.class,
-                () -> authenticationService.authenticateTrainer(new Credentials("Nodira.Karimova", "wrong")));
+        // when
+        AuthenticationFailedException exception = assertThrows(AuthenticationFailedException.class,
+                () -> authenticationService.authenticateTrainer(credentials));
+
+        // then
+        assertEquals(INVALID_CREDENTIALS, exception.getMessage());
     }
 
     @Test
     void authenticateUser_correctCredentials_returnsUser() {
+        // given
         User user = user("John", "Smith", "John.Smith");
         when(userDao.findByUsername("John.Smith")).thenReturn(Optional.of(user));
 
-        assertSame(user, authenticationService.authenticateUser(new Credentials("John.Smith", "password12")));
+        // when
+        User result = authenticationService.authenticateUser(new Credentials("John.Smith", "password12"));
+
+        // then
+        assertSame(user, result);
     }
 
     @Test
     void authenticateUser_unknownUser_throwsException() {
+        // given
         when(userDao.findByUsername("Nobody.Here")).thenReturn(Optional.empty());
+        Credentials credentials = new Credentials("Nobody.Here", "password12");
 
-        assertThrows(AuthenticationFailedException.class,
-                () -> authenticationService.authenticateUser(new Credentials("Nobody.Here", "password12")));
+        // when
+        AuthenticationFailedException exception = assertThrows(AuthenticationFailedException.class,
+                () -> authenticationService.authenticateUser(credentials));
+
+        // then
+        assertEquals(INVALID_CREDENTIALS, exception.getMessage());
     }
 }

@@ -12,7 +12,6 @@ import com.epam.gym.util.PasswordGenerator;
 import com.epam.gym.util.UsernameGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,34 +29,21 @@ import static com.epam.gym.util.ValidationUtils.requireNotNull;
 public class TraineeServiceImpl implements TraineeService {
     private static final Logger log = LoggerFactory.getLogger(TraineeServiceImpl.class);
 
-    private TraineeDao traineeDao;
-    private TrainerDao trainerDao;
-    private AuthenticationService authenticationService;
-    private UsernameGenerator usernameGenerator;
-    private PasswordGenerator passwordGenerator;
+    private final TraineeDao traineeDao;
+    private final TrainerDao trainerDao;
+    private final AuthenticationService authenticationService;
+    private final UsernameGenerator usernameGenerator;
+    private final PasswordGenerator passwordGenerator;
 
-    @Autowired
-    public void setTraineeDao(TraineeDao traineeDao) {
+    public TraineeServiceImpl(TraineeDao traineeDao,
+                              TrainerDao trainerDao,
+                              AuthenticationService authenticationService,
+                              UsernameGenerator usernameGenerator,
+                              PasswordGenerator passwordGenerator) {
         this.traineeDao = traineeDao;
-    }
-
-    @Autowired
-    public void setTrainerDao(TrainerDao trainerDao) {
         this.trainerDao = trainerDao;
-    }
-
-    @Autowired
-    public void setAuthenticationService(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
-    }
-
-    @Autowired
-    public void setUsernameGenerator(UsernameGenerator usernameGenerator) {
         this.usernameGenerator = usernameGenerator;
-    }
-
-    @Autowired
-    public void setPasswordGenerator(PasswordGenerator passwordGenerator) {
         this.passwordGenerator = passwordGenerator;
     }
 

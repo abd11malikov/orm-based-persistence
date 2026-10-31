@@ -16,7 +16,6 @@ import com.epam.gym.service.AuthenticationService;
 import com.epam.gym.service.TrainingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,34 +32,21 @@ import static com.epam.gym.util.ValidationUtils.requirePositive;
 public class TrainingServiceImpl implements TrainingService {
     private static final Logger log = LoggerFactory.getLogger(TrainingServiceImpl.class);
 
-    private TrainingDao trainingDao;
-    private TraineeDao traineeDao;
-    private TrainerDao trainerDao;
-    private TrainingTypeDao trainingTypeDao;
-    private AuthenticationService authenticationService;
+    private final TrainingDao trainingDao;
+    private final TraineeDao traineeDao;
+    private final TrainerDao trainerDao;
+    private final TrainingTypeDao trainingTypeDao;
+    private final AuthenticationService authenticationService;
 
-    @Autowired
-    public void setTrainingDao(TrainingDao trainingDao) {
+    public TrainingServiceImpl(TrainingDao trainingDao,
+                               TraineeDao traineeDao,
+                               TrainerDao trainerDao,
+                               TrainingTypeDao trainingTypeDao,
+                               AuthenticationService authenticationService) {
         this.trainingDao = trainingDao;
-    }
-
-    @Autowired
-    public void setTraineeDao(TraineeDao traineeDao) {
         this.traineeDao = traineeDao;
-    }
-
-    @Autowired
-    public void setTrainerDao(TrainerDao trainerDao) {
         this.trainerDao = trainerDao;
-    }
-
-    @Autowired
-    public void setTrainingTypeDao(TrainingTypeDao trainingTypeDao) {
         this.trainingTypeDao = trainingTypeDao;
-    }
-
-    @Autowired
-    public void setAuthenticationService(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
     }
 

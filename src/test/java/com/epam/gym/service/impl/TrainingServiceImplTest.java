@@ -65,24 +65,22 @@ class TrainingServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        trainingService = new TrainingServiceImpl();
-        trainingService.setTrainingDao(trainingDao);
-        trainingService.setTraineeDao(traineeDao);
-        trainingService.setTrainerDao(trainerDao);
-        trainingService.setTrainingTypeDao(trainingTypeDao);
-        trainingService.setAuthenticationService(authenticationService);
-
+        trainingService = new TrainingServiceImpl(
+                trainingDao, traineeDao, trainerDao, trainingTypeDao, authenticationService);
         john = trainee("John", "Smith", "John.Smith");
         nodira = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
     }
 
     @Test
     void addTraining_byTrainee_savesTrainingAndLinksTrainer() {
+        // given
         when(authenticationService.authenticateUser(TRAINEE_LOGIN)).thenReturn(john.getUser());
         stubReferences();
 
+        // when
         Training training = trainingService.addTraining(TRAINEE_LOGIN, request(60));
 
+        // then
         assertSame(john, training.getTrainee());
         assertSame(nodira, training.getTrainer());
         assertSame(yoga, training.getTrainingType());
@@ -95,81 +93,131 @@ class TrainingServiceImplTest {
 
     @Test
     void addTraining_byTrainer_isAllowed() {
+        // given
         when(authenticationService.authenticateUser(TRAINER_LOGIN)).thenReturn(nodira.getUser());
         stubReferences();
 
+        // when
         trainingService.addTraining(TRAINER_LOGIN, request(60));
 
+        // then
         verify(trainingDao).create(any());
     }
 
     @Test
     void addTraining_byOtherUser_throwsException() {
+        // given
         when(authenticationService.authenticateUser(STRANGER_LOGIN))
                 .thenReturn(trainee("Jane", "Doe", "Jane.Doe").getUser());
+        TrainingRequest request = request(60);
 
-        assertThrows(AuthenticationFailedException.class, () -> trainingService.addTraining(STRANGER_LOGIN, request(60)));
+        // when
+        AuthenticationFailedException exception = assertThrows(AuthenticationFailedException.class,
+                () -> trainingService.addTraining(STRANGER_LOGIN, request));
+
+        // then
+        assertEquals("Only the trainee or the trainer can add this training", exception.getMessage());
         verify(trainingDao, never()).create(any());
     }
 
     @Test
     void addTraining_zeroDuration_throwsException() {
-        assertThrows(IllegalArgumentException.class, () -> trainingService.addTraining(TRAINEE_LOGIN, request(0)));
+        // given
+        TrainingRequest request = request(0);
+
+        // when
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> trainingService.addTraining(TRAINEE_LOGIN, request));
+
+        // then
+        assertEquals("Training duration must be positive", exception.getMessage());
         verify(trainingDao, never()).create(any());
     }
 
     @Test
     void addTraining_missingName_throwsException() {
+        // given
         TrainingRequest request = new TrainingRequest("John.Smith", "Nodira.Karimova", " ", "Yoga", DATE, 60);
 
-        assertThrows(IllegalArgumentException.class, () -> trainingService.addTraining(TRAINEE_LOGIN, request));
+        // when
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> trainingService.addTraining(TRAINEE_LOGIN, request));
+
+        // then
+        assertEquals("Training name is required", exception.getMessage());
     }
 
     @Test
     void addTraining_missingDate_throwsException() {
+        // given
         TrainingRequest request = new TrainingRequest("John.Smith", "Nodira.Karimova", "Morning Yoga", "Yoga", null, 60);
 
-        assertThrows(IllegalArgumentException.class, () -> trainingService.addTraining(TRAINEE_LOGIN, request));
+        // when
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> trainingService.addTraining(TRAINEE_LOGIN, request));
+
+        // then
+        assertEquals("Training date is required", exception.getMessage());
     }
 
     @Test
     void addTraining_unknownTrainingType_throwsException() {
+        // given
         when(authenticationService.authenticateUser(TRAINEE_LOGIN)).thenReturn(john.getUser());
         when(traineeDao.findByUsername("John.Smith")).thenReturn(Optional.of(john));
         when(trainerDao.findByUsername("Nodira.Karimova")).thenReturn(Optional.of(nodira));
         when(trainingTypeDao.findByName("Yoga")).thenReturn(Optional.empty());
+        TrainingRequest request = request(60);
 
-        assertThrows(NoSuchElementException.class, () -> trainingService.addTraining(TRAINEE_LOGIN, request(60)));
+        // when
+        NoSuchElementException exception = assertThrows(NoSuchElementException.class,
+                () -> trainingService.addTraining(TRAINEE_LOGIN, request));
+
+        // then
+        assertEquals("Training type Yoga not found", exception.getMessage());
         verify(trainingDao, never()).create(any());
     }
 
     @Test
     void getTraineeTrainings_authenticatesAndPassesCriteriaToDao() {
+        // given
         List<Training> trainings = List.of(new Training());
         when(trainingDao.findTraineeTrainings("John.Smith", DATE, null, "Nodira.Karimova", "Yoga"))
                 .thenReturn(trainings);
 
-        assertEquals(trainings,
-                trainingService.getTraineeTrainings(TRAINEE_LOGIN, DATE, null, "Nodira.Karimova", "Yoga"));
+        // when
+        List<Training> result = trainingService.getTraineeTrainings(TRAINEE_LOGIN, DATE, null, "Nodira.Karimova", "Yoga");
+
+        // then
+        assertEquals(trainings, result);
         verify(authenticationService).authenticateTrainee(TRAINEE_LOGIN);
     }
 
     @Test
     void getTraineeTrainings_failedAuthentication_doesNotQuery() {
+        // given
         when(authenticationService.authenticateTrainee(TRAINEE_LOGIN))
                 .thenThrow(new AuthenticationFailedException("bad"));
 
+        // when
         assertThrows(AuthenticationFailedException.class,
                 () -> trainingService.getTraineeTrainings(TRAINEE_LOGIN, null, null, null, null));
+
+        // then
         verify(trainingDao, never()).findTraineeTrainings(any(), any(), any(), any(), any());
     }
 
     @Test
     void getTrainerTrainings_authenticatesAndPassesCriteriaToDao() {
+        // given
         List<Training> trainings = List.of(new Training());
         when(trainingDao.findTrainerTrainings("Nodira.Karimova", null, DATE, "John.Smith")).thenReturn(trainings);
 
-        assertEquals(trainings, trainingService.getTrainerTrainings(TRAINER_LOGIN, null, DATE, "John.Smith"));
+        // when
+        List<Training> result = trainingService.getTrainerTrainings(TRAINER_LOGIN, null, DATE, "John.Smith");
+
+        // then
+        assertEquals(trainings, result);
         verify(authenticationService).authenticateTrainer(TRAINER_LOGIN);
     }
 

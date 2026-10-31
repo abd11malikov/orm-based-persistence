@@ -10,6 +10,7 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -25,22 +26,40 @@ class TrainingTypeDaoImplTest {
 
     @Test
     void findAll_returnsSeededTypesSortedByName() {
+        // given
+        int seededTypes = 6;
+
+        // when
         List<TrainingType> types = trainingTypeDao.findAll();
 
-        assertEquals(6, types.size());
+        // then
+        assertEquals(seededTypes, types.size());
         assertEquals("Cardio", types.get(0).getTrainingTypeName());
     }
 
     @Test
     void findByName_existingType_returnsIt() {
-        TrainingType yoga = trainingTypeDao.findByName("Yoga").orElseThrow();
+        // given
+        String name = "Yoga";
 
-        assertNotNull(yoga.getId());
-        assertEquals("Yoga", yoga.getTrainingTypeName());
+        // when
+        Optional<TrainingType> type = trainingTypeDao.findByName(name);
+
+        // then
+        assertTrue(type.isPresent());
+        assertNotNull(type.get().getId());
+        assertEquals(name, type.get().getTrainingTypeName());
     }
 
     @Test
     void findByName_unknownType_returnsEmpty() {
-        assertTrue(trainingTypeDao.findByName("Swimming").isEmpty());
+        // given
+        String name = "Swimming";
+
+        // when
+        Optional<TrainingType> type = trainingTypeDao.findByName(name);
+
+        // then
+        assertTrue(type.isEmpty());
     }
 }

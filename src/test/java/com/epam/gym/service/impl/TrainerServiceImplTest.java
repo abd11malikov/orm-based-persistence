@@ -57,18 +57,14 @@ class TrainerServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        trainerService = new TrainerServiceImpl();
-        trainerService.setTrainerDao(trainerDao);
-        trainerService.setTrainingTypeDao(trainingTypeDao);
-        trainerService.setAuthenticationService(authenticationService);
-        trainerService.setUsernameGenerator(usernameGenerator);
-        trainerService.setPasswordGenerator(passwordGenerator);
-
+        trainerService = new TrainerServiceImpl(
+                trainerDao, trainingTypeDao, authenticationService, usernameGenerator, passwordGenerator);
         nodira = trainer("Nodira", "Karimova", "Nodira.Karimova", yoga);
     }
 
     @Test
     void create_setsCredentialsAndLoadsSpecializationFromDatabase() {
+        // given
         TrainingType yogaFromDb = new TrainingType("Yoga");
         Trainer trainer = new Trainer(new User("Nodira", "Karimova"), new TrainingType("Yoga"));
         when(trainingTypeDao.findByName("Yoga")).thenReturn(Optional.of(yogaFromDb));
@@ -76,8 +72,10 @@ class TrainerServiceImplTest {
         when(passwordGenerator.generate()).thenReturn("sT7uV1wX3y");
         when(trainerDao.create(trainer)).thenReturn(trainer);
 
+        // when
         Trainer created = trainerService.create(trainer);
 
+        // then
         assertSame(yogaFromDb, created.getSpecialization());
         assertEquals("Nodira.Karimova", created.getUser().getUsername());
         assertEquals("sT7uV1wX3y", created.getUser().getPassword());
@@ -86,67 +84,107 @@ class TrainerServiceImplTest {
 
     @Test
     void create_unknownSpecialization_throwsException() {
+        // given
         Trainer trainer = new Trainer(new User("Nodira", "Karimova"), new TrainingType("Swimming"));
         when(trainingTypeDao.findByName("Swimming")).thenReturn(Optional.empty());
 
-        assertThrows(NoSuchElementException.class, () -> trainerService.create(trainer));
+        // when
+        NoSuchElementException exception = assertThrows(NoSuchElementException.class,
+                () -> trainerService.create(trainer));
+
+        // then
+        assertEquals("Training type Swimming not found", exception.getMessage());
         verify(trainerDao, never()).create(any());
     }
 
     @Test
     void create_withoutSpecialization_throwsException() {
+        // given
         Trainer trainer = new Trainer(new User("Nodira", "Karimova"), null);
 
-        assertThrows(IllegalArgumentException.class, () -> trainerService.create(trainer));
+        // when
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> trainerService.create(trainer));
+
+        // then
+        assertEquals("Specialization is required", exception.getMessage());
         verify(trainerDao, never()).create(any());
     }
 
     @Test
     void create_missingLastName_throwsException() {
+        // given
         Trainer trainer = new Trainer(new User("Nodira", ""), yoga);
 
-        assertThrows(IllegalArgumentException.class, () -> trainerService.create(trainer));
+        // when
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> trainerService.create(trainer));
+
+        // then
+        assertEquals("Last name is required", exception.getMessage());
     }
 
     @Test
     void credentialsMatch_delegatesToAuthenticationService() {
+        // given
         when(authenticationService.trainerCredentialsMatch("Nodira.Karimova", "wrong")).thenReturn(false);
 
-        assertFalse(trainerService.credentialsMatch("Nodira.Karimova", "wrong"));
+        // when
+        boolean matches = trainerService.credentialsMatch("Nodira.Karimova", "wrong");
+
+        // then
+        assertFalse(matches);
     }
 
     @Test
     void selectByUsername_authenticatedUser_returnsTrainer() {
+        // given
         when(trainerDao.findByUsername("Nodira.Karimova")).thenReturn(Optional.of(nodira));
 
-        assertSame(nodira, trainerService.selectByUsername(LOGIN, "Nodira.Karimova"));
+        // when
+        Trainer result = trainerService.selectByUsername(LOGIN, "Nodira.Karimova");
+
+        // then
+        assertSame(nodira, result);
         verify(authenticationService).authenticateUser(LOGIN);
     }
 
     @Test
     void selectByUsername_unknownTrainer_throwsException() {
+        // given
         when(trainerDao.findByUsername("Nobody.Here")).thenReturn(Optional.empty());
 
-        assertThrows(NoSuchElementException.class, () -> trainerService.selectByUsername(LOGIN, "Nobody.Here"));
+        // when
+        NoSuchElementException exception = assertThrows(NoSuchElementException.class,
+                () -> trainerService.selectByUsername(LOGIN, "Nobody.Here"));
+
+        // then
+        assertEquals("Trainer Nobody.Here not found", exception.getMessage());
     }
 
     @Test
     void changePassword_setsNewPassword() {
+        // given
         when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
 
+        // when
         trainerService.changePassword(LOGIN, "newSecret1");
 
+        // then
         assertEquals("newSecret1", nodira.getUser().getPassword());
     }
 
     @Test
     void updateProfile_copiesFieldsAndKeepsCredentials() {
+        // given
         Trainer changes = new Trainer(new User("Nodira", "Aliyeva"), new TrainingType("Cardio"));
         when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
         when(trainingTypeDao.findByName("Cardio")).thenReturn(Optional.of(cardio));
 
+        // when
         Trainer updated = trainerService.updateProfile(LOGIN, changes);
 
+        // then
         assertSame(nodira, updated);
         assertEquals("Aliyeva", updated.getUser().getLastName());
         assertSame(cardio, updated.getSpecialization());
@@ -156,35 +194,53 @@ class TrainerServiceImplTest {
 
     @Test
     void deactivate_activeTrainer_makesItInactive() {
+        // given
         when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
 
+        // when
         trainerService.deactivate(LOGIN);
 
+        // then
         assertFalse(nodira.getUser().isActive());
     }
 
     @Test
     void deactivate_alreadyInactiveTrainer_throwsException() {
+        // given
         nodira.getUser().setActive(false);
         when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
 
-        assertThrows(IllegalStateException.class, () -> trainerService.deactivate(LOGIN));
+        // when
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> trainerService.deactivate(LOGIN));
+
+        // then
+        assertEquals("Trainer Nodira.Karimova is already inactive", exception.getMessage());
     }
 
     @Test
     void activate_inactiveTrainer_makesItActive() {
+        // given
         nodira.getUser().setActive(false);
         when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
 
+        // when
         trainerService.activate(LOGIN);
 
+        // then
         assertTrue(nodira.getUser().isActive());
     }
 
     @Test
     void activate_alreadyActiveTrainer_throwsException() {
+        // given
         when(authenticationService.authenticateTrainer(LOGIN)).thenReturn(nodira);
 
-        assertThrows(IllegalStateException.class, () -> trainerService.activate(LOGIN));
+        // when
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> trainerService.activate(LOGIN));
+
+        // then
+        assertEquals("Trainer Nodira.Karimova is already active", exception.getMessage());
     }
 }

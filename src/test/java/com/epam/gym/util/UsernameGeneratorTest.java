@@ -22,48 +22,83 @@ class UsernameGeneratorTest {
 
     @BeforeEach
     void setUp() {
-        usernameGenerator = new UsernameGenerator();
-        usernameGenerator.setUserDao(userDao);
+        usernameGenerator = new UsernameGenerator(userDao);
     }
 
     @Test
     void generate_usernameIsFree_returnsBaseUsername() {
+        // given
         when(userDao.existsByUsername("John.Smith")).thenReturn(false);
 
-        assertEquals("John.Smith", usernameGenerator.generate("John", "Smith"));
+        // when
+        String username = usernameGenerator.generate("John", "Smith");
+
+        // then
+        assertEquals("John.Smith", username);
     }
 
     @Test
     void generate_baseUsernameTaken_addsSerialNumber() {
+        // given
         when(userDao.existsByUsername("John.Smith")).thenReturn(true);
         when(userDao.existsByUsername("John.Smith1")).thenReturn(false);
 
-        assertEquals("John.Smith1", usernameGenerator.generate("John", "Smith"));
+        // when
+        String username = usernameGenerator.generate("John", "Smith");
+
+        // then
+        assertEquals("John.Smith1", username);
     }
 
     @Test
     void generate_baseAndFirstSerialTaken_returnsNextSerialNumber() {
+        // given
         when(userDao.existsByUsername("John.Smith")).thenReturn(true);
         when(userDao.existsByUsername("John.Smith1")).thenReturn(true);
         when(userDao.existsByUsername("John.Smith2")).thenReturn(false);
 
-        assertEquals("John.Smith2", usernameGenerator.generate("John", "Smith"));
+        // when
+        String username = usernameGenerator.generate("John", "Smith");
+
+        // then
+        assertEquals("John.Smith2", username);
     }
 
     @Test
     void generate_namesWithSpaces_trimsThem() {
+        // given
         when(userDao.existsByUsername(anyString())).thenReturn(false);
 
-        assertEquals("John.Smith", usernameGenerator.generate("  John ", " Smith  "));
+        // when
+        String username = usernameGenerator.generate("  John ", " Smith  ");
+
+        // then
+        assertEquals("John.Smith", username);
     }
 
     @Test
     void generate_nullFirstName_throwsException() {
-        assertThrows(IllegalArgumentException.class, () -> usernameGenerator.generate(null, "Smith"));
+        // given
+        String firstName = null;
+
+        // when
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> usernameGenerator.generate(firstName, "Smith"));
+
+        // then
+        assertEquals("First name must not be empty", exception.getMessage());
     }
 
     @Test
     void generate_blankLastName_throwsException() {
-        assertThrows(IllegalArgumentException.class, () -> usernameGenerator.generate("John", "  "));
+        // given
+        String lastName = "  ";
+
+        // when
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> usernameGenerator.generate("John", lastName));
+
+        // then
+        assertEquals("Last name must not be empty", exception.getMessage());
     }
 }
